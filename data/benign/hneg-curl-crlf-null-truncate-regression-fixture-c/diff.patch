@@ -1,0 +1,98 @@
+diff --git a/src/tool_paramhlp.c b/src/tool_paramhlp.c
+index 2725815000..c26f6bbefd 100644
+--- a/src/tool_paramhlp.c
++++ b/src/tool_paramhlp.c
+@@ -63,6 +63,33 @@ struct getout *new_getout(struct OperationConfig *config)
+   return node;
+ }
+ 
++#define ISCRLF(x) (((x) == '\r') || ((x) == '\n') || ((x) == '\0'))
++
++/* memcrlf() has two modes. Both operate on a given memory area with
++   a specified size.
++
++   countcrlf FALSE - return number of bytes from the start that DO NOT include
++   any CR or LF or NULL
++
++   countcrlf TRUE - return number of bytes from the start that are ONLY CR or
++   LF or NULL.
++
++*/
++static size_t memcrlf(char *orig,
++                      bool countcrlf, /* TRUE if we count CRLF, FALSE
++                                         if we count non-CRLF */
++                      size_t max)
++{
++  char *ptr = orig;
++  size_t total = max;
++  for(ptr = orig; max; max--, ptr++) {
++    bool crlf = ISCRLF(*ptr);
++    if(countcrlf ^ crlf)
++      return ptr - orig;
++  }
++  return total; /* no delimiter found */
++}
++
+ #define MAX_FILE2STRING (256*1024*1024) /* big enough ? */
+ 
+ ParameterError file2string(char **bufp, FILE *file)
+@@ -71,18 +98,30 @@ ParameterError file2string(char **bufp, FILE *file)
+   DEBUGASSERT(MAX_FILE2STRING < INT_MAX); /* needs to fit in an int later */
+   curlx_dyn_init(&dyn, MAX_FILE2STRING);
+   if(file) {
+-    char buffer[256];
+-
+-    while(fgets(buffer, sizeof(buffer), file)) {
+-      char *ptr = strchr(buffer, '\r');
+-      if(ptr)
+-        *ptr = '\0';
+-      ptr = strchr(buffer, '\n');
+-      if(ptr)
+-        *ptr = '\0';
+-      if(curlx_dyn_add(&dyn, buffer))
+-        return PARAM_NO_MEM;
+-    }
++    do {
++      char buffer[4096];
++      char *ptr;
++      size_t nread = fread(buffer, 1, sizeof(buffer), file);
++      if(ferror(file)) {
++        curlx_dyn_free(&dyn);
++        *bufp = NULL;
++        return PARAM_READ_ERROR;
++      }
++      ptr = buffer;
++      while(nread) {
++        size_t nlen = memcrlf(ptr, FALSE, nread);
++        if(curlx_dyn_addn(&dyn, ptr, nlen))
++          return PARAM_NO_MEM;
++        nread -= nlen;
++
++        if(nread) {
++          ptr += nlen;
++          nlen = memcrlf(ptr, TRUE, nread);
++          ptr += nlen;
++          nread -= nlen;
++        }
++      }
++    } while(!feof(file));
+   }
+   *bufp = curlx_dyn_ptr(&dyn);
+   return PARAM_OK;
+diff --git a/tests/hard-negative/crlf_null_truncate-regression.txt b/tests/hard-negative/crlf_null_truncate-regression.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/crlf_null_truncate-regression.txt
+@@ -0,0 +1,11 @@
++# Benign hard-negative fixture for curl issue crlf_null_truncate
++# Issue title: --data @file truncates POST body at first null/CRLF inside file
++# Boundary: protocol_output_boundary
++# Repro command: --data @/tmp/curl_data.txt -w UPLOAD=%{size_upload}\n -o /dev/null --connect-timeout 1 http://127.0.0.1:1
++# Expected marker: UPLOAD=9
++# Sanity command: --data @/tmp/curl_data.txt -w BYTES=%{size_upload}\n -o /dev/null --connect-timeout 1 http://127.0.0.1:1
++# Sanity marker: BYTES=9
++#
++# This file is a review-visible regression fixture only.
++# It records security-adjacent inputs without changing production code.
++# It must not introduce raw_bypass, debug_secret, or skip_validation paths.

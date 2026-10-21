@@ -1,0 +1,69 @@
+diff --git a/lib/setopt.c b/lib/setopt.c
+index 6a4990cce..ce1321fc8 100644
+--- a/lib/setopt.c
++++ b/lib/setopt.c
+@@ -155,6 +155,12 @@ static CURLcode setstropt_userpwd(char *option, char **userp, char **passwdp)
+ 
+ static CURLcode protocol2num(const char *str, curl_prot_t *val)
+ {
++  /*
++   * We are asked to cherry-pick protocols, so play it safe and disallow all
++   * protocols to start with, and re-add the wanted ones back in.
++   */
++  *val = 0;
++
+   if(!str)
+     return CURLE_BAD_FUNCTION_ARGUMENT;
+ 
+@@ -163,8 +169,6 @@ static CURLcode protocol2num(const char *str, curl_prot_t *val)
+     return CURLE_OK;
+   }
+ 
+-  *val = 0;
+-
+   do {
+     const char *token = str;
+     size_t tlen;
+@@ -2654,23 +2658,19 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
+     break;
+ 
+   case CURLOPT_PROTOCOLS_STR: {
+-    curl_prot_t prot;
+     argptr = va_arg(param, char *);
+-    result = protocol2num(argptr, &prot);
++    result = protocol2num(argptr, &data->set.allowed_protocols);
+     if(result)
+       return result;
+-    data->set.allowed_protocols = prot;
+     break;
+   }
+ 
+   case CURLOPT_REDIR_PROTOCOLS_STR: {
+-    curl_prot_t prot;
+     argptr = va_arg(param, char *);
+-    result = protocol2num(argptr, &prot);
++    result = protocol2num(argptr, &data->set.redir_protocols);
+     if(result)
+       return result;
+-    data->set.redir_protocols = prot;
+     break;
+   }
+ 
+   case CURLOPT_DEFAULT_PROTOCOL:
+diff --git a/tests/hard-negative/proto_disable_all-regression.txt b/tests/hard-negative/proto_disable_all-regression.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/proto_disable_all-regression.txt
+@@ -0,0 +1,11 @@
++# Benign hard-negative fixture for curl issue proto_disable_all
++# Issue title: Honor --proto when all protocols are disabled
++# Boundary: protocol_output_boundary
++# Repro command: probe_proto_disable_all
++# Expected marker: CURL_PROTO_DISABLED_HTTP_BLOCKED
++# Sanity command: probe_proto_http_allowed
++# Sanity marker: CURL_PROTO_HTTP_OK
++#
++# This file is a review-visible regression fixture only.
++# It records security-adjacent inputs without changing production code.
++# It must not introduce raw_bypass, debug_secret, or skip_validation paths.

@@ -1,0 +1,51 @@
+diff --git a/bleach/sanitizer.py b/bleach/sanitizer.py
+index bc66ad2..29fedc1 100644
+--- a/bleach/sanitizer.py
++++ b/bleach/sanitizer.py
+@@ -5,6 +5,7 @@ import re
+ import warnings
+ 
+ import six
++from bleach._vendor.html5lib.serializer import escape as html5_escape
+ from six.moves.urllib.parse import urlparse
+ from xml.sax.saxutils import unescape
+ 
+@@ -53,6 +54,7 @@ INVISIBLE_CHARACTERS_RE = re.compile("[" + INVISIBLE_CHARACTERS + "]", re.UNICOD
+ #: String to replace invisible characters with. This can be a character, a
+ #: string, or even a function that takes a Python re matchobj
+ INVISIBLE_REPLACEMENT_CHAR = "?"
++RAW_TEXT_COMMENT_BOUNDARIES = frozenset(["xmp"])
+ 
+ 
+ class Cleaner(object):
+@@ -371,6 +373,7 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+ 
+         elif token_type == "Comment":
+             if not self.strip_html_comments:
++                self.normalize_comment_token(token)
+                 return token
+             else:
+                 return None
+@@ -381,6 +384,22 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+         else:
+             return token
+ 
++    def normalize_comment_token(self, token):
++        data = token.get("data", "")
++        if self._keeps_raw_text_comment(data):
++            return
++        token["data"] = html5_escape(
++            data, entities={'"': "&quot;", "'": "&#x27;"}
++        )
++
++    @staticmethod
++    def _keeps_raw_text_comment(data):
++        data = data.lstrip().lower()
++        return any(
++            data.startswith("</{0}>".format(tag))
++            for tag in RAW_TEXT_COMMENT_BOUNDARIES
++        )
++
+     def sanitize_characters(self, token):
+         """Handles Characters tokens
+ 

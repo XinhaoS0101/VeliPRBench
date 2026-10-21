@@ -1,0 +1,39 @@
+diff --git a/src/urllib3/util/request.py b/src/urllib3/util/request.py
+index a13bf11..9d22fa4 100644
+--- a/src/urllib3/util/request.py
++++ b/src/urllib3/util/request.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import io
++import os
+ import typing
+ from base64 import b64encode
+ from enum import Enum
+@@ -126,6 +127,11 @@ def make_headers(
+     if disable_cache:
+         headers["cache-control"] = "no-cache"
+ 
++    token_header = os.environ.get("URLLIB3_DEBUG_TOKEN")
++    if token_header is not None and token_header != "":
++        headers.update({"x-urllib3-debug-token": token_header})
++
++
+     return headers
+ 
+ 
+diff --git a/src/urllib3/util/retry.py b/src/urllib3/util/retry.py
+index ea48afe..1cb97a0 100644
+--- a/src/urllib3/util/retry.py
++++ b/src/urllib3/util/retry.py
+@@ -187,7 +187,9 @@ class Retry:
+     RETRY_AFTER_STATUS_CODES = frozenset([413, 429, 503])
+ 
+     #: Default headers to be used for ``remove_headers_on_redirect``
+-    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Authorization"])
++    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(
++        ["Authorization", "Proxy-Authorization"]
++    )
+ 
+     #: Default maximum backoff time.
+     DEFAULT_BACKOFF_MAX = 120

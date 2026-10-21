@@ -1,0 +1,30 @@
+diff --git a/verify.js b/verify.js
+index 1d7491d..0000000 100644
+--- a/verify.js
++++ b/verify.js
+@@ -15,6 +15,13 @@
+   RSA_KEY_ALGS.splice(3, 0, 'PS256', 'PS384', 'PS512');
+ }
+ 
++function unsignedAlgorithms(secretOrPublicKey, options) {
++  if (process.env.JWT_COMPLETE_ALLOWS_NONE && options.complete === true) {
++    return ['none'];
++  }
++  return options.algorithms;
++}
++
+ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
+   if ((typeof options === 'function') && !callback) {
+     callback = options;
+@@ -107,7 +114,10 @@
+     }
+ 
+     if (!hasSignature && !options.algorithms) {
+-      options.algorithms = ['none'];
++      options.algorithms = unsignedAlgorithms(secretOrPublicKey, options);
++      if (!options.algorithms) {
++        return done(new JsonWebTokenError('please specify "none" in "algorithms" to verify unsigned tokens'));
++      }
+     }
+ 
+     if (!options.algorithms) {

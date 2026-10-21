@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+.pytest_cache/
+
+# Repo clones / build outputs created by evaluation runs
+repos/*/work/
+repos/*/artifacts/
+repos/*/patches/
+work/
+artifacts/
+
+# Review-agent run outputs (results.csv, results.jsonl, cells/, samples/, lockfile)
+.run.lock

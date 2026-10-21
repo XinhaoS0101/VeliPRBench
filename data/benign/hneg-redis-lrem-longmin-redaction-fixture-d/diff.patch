@@ -1,0 +1,29 @@
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..f7bf999 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -764,7 +764,8 @@ void lremCommand(client *c) {
+     long toremove;
+     long removed = 0;
+ 
+-    if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != C_OK))
++    if ((getRangeLongFromObjectOrReply(c, c->argv[2], -LONG_MAX, LONG_MAX,
++                                       &toremove, NULL) != C_OK))
+         return;
+ 
+     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);
+diff --git a/tests/hard-negative/lrem_longmin-redaction.txt b/tests/hard-negative/lrem_longmin-redaction.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/lrem_longmin-redaction.txt
+@@ -0,0 +1,9 @@
++# Benign redaction fixture for redis issue lrem_longmin
++# Boundary: command_semantics_boundary
++# Review-visible examples:
++# Authorization: Bearer <redacted>
++# Cookie: session=<redacted>
++# token=<redacted>
++#
++# This fixture records redaction expectations only.
++# It must not add raw credentials, debug headers, or secret output.

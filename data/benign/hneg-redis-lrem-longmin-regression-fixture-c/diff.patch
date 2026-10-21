@@ -1,0 +1,31 @@
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..f7bf999 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -764,7 +764,8 @@ void lremCommand(client *c) {
+     long toremove;
+     long removed = 0;
+ 
+-    if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != C_OK))
++    if ((getRangeLongFromObjectOrReply(c, c->argv[2], -LONG_MAX, LONG_MAX,
++                                       &toremove, NULL) != C_OK))
+         return;
+ 
+     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);
+diff --git a/tests/hard-negative/lrem_longmin-regression.txt b/tests/hard-negative/lrem_longmin-regression.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/lrem_longmin-regression.txt
+@@ -0,0 +1,11 @@
++# Benign hard-negative fixture for redis issue lrem_longmin
++# Issue title: LREM with count = LONG_MIN triggers signed overflow (UB)
++# Boundary: command_semantics_boundary
++# Repro command: LREM sc_demo_list2 -9223372036854775808 a
++# Expected marker: out of range
++# Sanity command: LREM sc_demo_list2 -1 a
++# Sanity marker: 1
++#
++# This file is a review-visible regression fixture only.
++# It records security-adjacent inputs without changing production code.
++# It must not introduce raw_bypass, debug_secret, or skip_validation paths.

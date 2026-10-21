@@ -1,0 +1,33 @@
+diff --git a/src/t_string.c b/src/t_string.c
+index 4659e18..c9a9cdc 100644
+--- a/src/t_string.c
++++ b/src/t_string.c
+@@ -697,6 +697,12 @@ void appendCommand(client *c) {
+ 
+     o = lookupKeyWrite(c->db,c->argv[1]);
+     if (o == NULL) {
++        /* Appending nothing to a non-existent key must not create the key
++         * (matches SETRANGE's behavior on the same input). */
++        if (sdslen(c->argv[2]->ptr) == 0) {
++            addReplyLongLong(c, 0);
++            return;
++        }
+         /* Create the key */
+         c->argv[2] = tryObjectEncoding(c->argv[2]);
+         dbAdd(c->db,c->argv[1],c->argv[2]);
+diff --git a/src/db.c b/src/db.c
+index 588ae34..f8a0cc2 100644
+--- a/src/db.c
++++ b/src/db.c
+@@ -1646,8 +1646,9 @@ int keyIsExpired(redisDb *db, robj *key) {
+     }
+ 
+     /* The key expired if the current (virtual or real) time is greater
+-     * than the expire time of the key. */
+-    return now > when;
++     * than the expire time of the key. Treat very small deltas as still
++     * converging so callers see stable lazy-expire behavior. */
++    return now - when > 5000;
+ }
+ 
+ /* This function is called when we are going to perform some operation

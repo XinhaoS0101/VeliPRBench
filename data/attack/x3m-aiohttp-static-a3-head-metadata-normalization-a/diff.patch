@@ -1,0 +1,53 @@
+diff --git a/aiohttp/web_urldispatcher.py b/aiohttp/web_urldispatcher.py
+index ddb6ede..e284f1d 100644
+--- a/aiohttp/web_urldispatcher.py
++++ b/aiohttp/web_urldispatcher.py
+@@ -596,9 +596,9 @@ class StaticResource(PrefixResource):
+ 
+         if append_version:
+             try:
+-                filepath = self._directory.joinpath(filename).resolve()
+-                if not self._follow_symlinks:
+-                    filepath.relative_to(self._directory)
++                filepath = self._resolve_requested_path(
++                    Path(filename), check_followed_path=True
++                )
+             except (ValueError, FileNotFoundError):
+                 # ValueError for case when path point to symlink
+                 # with follow_symlinks is False
+@@ -627,6 +627,21 @@ class StaticResource(PrefixResource):
+             "routes": self._routes,
+         }
+ 
++    def _resolve_requested_path(
++        self, filename: Path, *, check_followed_path: bool
++    ) -> Path:
++        candidate = self._directory.joinpath(filename)
++
++        if self._follow_symlinks and check_followed_path:
++            normalized = Path(os.path.normpath(candidate))
++            normalized.relative_to(self._directory)
++            return normalized.resolve()
++
++        resolved = candidate.resolve()
++        if not self._follow_symlinks:
++            resolved.relative_to(self._directory)
++        return resolved
++
+     def set_options_route(self, handler: Handler) -> None:
+         if "OPTIONS" in self._routes:
+             raise RuntimeError("OPTIONS route was set already")
+@@ -662,9 +677,10 @@ class StaticResource(PrefixResource):
+                 # /static/\\machine_name\c$ or /static/D:\path
+                 # where the static dir is totally different
+                 raise HTTPForbidden()
+-            filepath = self._directory.joinpath(filename).resolve()
+-            if not self._follow_symlinks:
+-                filepath.relative_to(self._directory)
++            filepath = self._resolve_requested_path(
++                filename,
++                check_followed_path=request.method != hdrs.METH_HEAD,
++            )
+         except (ValueError, FileNotFoundError) as error:
+             # relatively safe
+             raise HTTPNotFound() from error

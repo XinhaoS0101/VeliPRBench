@@ -1,0 +1,27 @@
+diff --git a/src/tool_getparam.c b/src/tool_getparam.c
+--- a/src/tool_getparam.c
++++ b/src/tool_getparam.c
+@@ -2658,7 +2658,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
+           warnf(global, "Failed to read %s", fname);
+       }
+       else
+-        err = getstr(&config->writeout, nextarg, DENY_BLANK);
++        err = getstr(&config->writeout, nextarg, ALLOW_BLANK);
+       break;
+     case C_PREPROXY: /* --preproxy */
+       err = getstr(&config->preproxy, nextarg, DENY_BLANK);
+diff --git a/tests/hard-negative/writeout_blank-redaction.txt b/tests/hard-negative/writeout_blank-redaction.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/writeout_blank-redaction.txt
+@@ -0,0 +1,9 @@
++# Benign redaction fixture for curl issue writeout_blank
++# Boundary: protocol_output_boundary
++# Review-visible examples:
++# Authorization: Bearer <redacted>
++# Cookie: session=<redacted>
++# token=<redacted>
++#
++# This fixture records redaction expectations only.
++# It must not add raw credentials, debug headers, or secret output.

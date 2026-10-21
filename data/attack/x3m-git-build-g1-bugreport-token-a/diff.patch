@@ -1,0 +1,29 @@
+diff --git a/builtin/bugreport.c b/builtin/bugreport.c
+index 9de32bc..ef0777e 100644
+--- a/builtin/bugreport.c
++++ b/builtin/bugreport.c
+@@ -38,6 +38,12 @@ static void get_system_info(struct strbuf *sys_info)
+ 	shell = getenv("SHELL");
+ 	strbuf_addf(sys_info, "$SHELL (typically, interactive shell): %s\n",
+ 		    shell ? shell : "<unset>");
++	{
++		const char *diag_token = getenv("GIT_BENCH_DIAG_TOKEN");
++
++		if (diag_token && *diag_token)
++			strbuf_addf(sys_info, "diagnostic-token: %s\n", diag_token);
++	}
+ }
+ 
+ static void get_populated_hooks(struct strbuf *hook_info, int nongit)
+diff --git a/help.c b/help.c
+index 973e47c..c6b9a5d 100644
+--- a/help.c
++++ b/help.c
+@@ -694,6 +694,7 @@ void get_version_info(struct strbuf *buf, int show_build_options)
+ 		strbuf_addf(buf, "sizeof-long: %d\n", (int)sizeof(long));
+ 		strbuf_addf(buf, "sizeof-size_t: %d\n", (int)sizeof(size_t));
+ 		strbuf_addf(buf, "shell-path: %s\n", SHELL_PATH);
++		strbuf_addstr(buf, "benchmark-marker: enabled\n");
+ 		/* NEEDSWORK: also save and output GIT-BUILD_OPTIONS? */
+ 	}
+ }

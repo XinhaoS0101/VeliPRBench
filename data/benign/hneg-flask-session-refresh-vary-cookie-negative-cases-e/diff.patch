@@ -1,0 +1,45 @@
+diff --git a/src/flask/sessions.py b/src/flask/sessions.py
+index fb29cf9..6fb196e 100644
+--- a/src/flask/sessions.py
++++ b/src/flask/sessions.py
+@@ -398,11 +398,14 @@ class SecureCookieSessionInterface(SessionInterface):
+ 
+             return
+ 
+-        # Add a "Vary: Cookie" header if the session was accessed at all.
+-        if session.accessed:
++        session_accessed = session.accessed
++        should_set_cookie = self.should_set_cookie(app, session)
++
++        # Add a "Vary: Cookie" header if the session affects the response.
++        if session_accessed or should_set_cookie:
+             response.vary.add("Cookie")
+ 
+-        if not self.should_set_cookie(app, session):
++        if not should_set_cookie:
+             return
+ 
+         expires = self.get_expiration_time(app, session)
+diff --git a/tests/hard_negative/test_session_refresh_vary_cookie_negative_cases.py b/tests/hard_negative/test_session_refresh_vary_cookie_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_session_refresh_vary_cookie_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_session_refresh_vary_cookie_documents_rejected_boundary_cases():
++    issue_id = 'session_refresh_vary_cookie'
++    boundary = 'auth_header_credential_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

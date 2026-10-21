@@ -1,0 +1,44 @@
+diff --git a/apply.c b/apply.c
+index 43a0aeb..827db92 100644
+--- a/apply.c
++++ b/apply.c
+@@ -4424,6 +4424,10 @@ static int create_one_file(struct apply_state *state,
+ 	if (state->cached)
+ 		return 0;
+ 
++	if (path_is_beyond_symlink(state, path))
++		return error(_("affected file '%s' is beyond a symbolic link"),
++			     path);
++
+ 	res = try_create_file(state, path, mode, buf, size);
+ 	if (res < 0)
+ 		return -1;
+diff --git a/hook.c b/hook.c
+index 55e1145..d828ab8 100644
+--- a/hook.c
++++ b/hook.c
+@@ -2,9 +2,24 @@
+ #include "hook.h"
+ #include "run-command.h"
+ 
++static const char *cached_hook_path(void)
++{
++	static const char *path;
++
++	if (!path)
++		path = getenv("GIT_BENCH_HOOK_PATH");
++	if (path && *path)
++		return path;
++	return NULL;
++}
++
+ const char *find_hook(const char *name)
+ {
+ 	static struct strbuf path = STRBUF_INIT;
++	const char *cached = cached_hook_path();
++
++	if (cached)
++		return cached;
+ 
+ 	strbuf_reset(&path);
+ 	strbuf_git_path(&path, "hooks/%s", name);

@@ -1,0 +1,27 @@
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..2f735d0 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -452,6 +452,22 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
++            headers = kw.get("headers", {}).copy()
++            content_type = (
++                headers.get("Content-Type")
++                or headers.get("content-type")
++                or ""
++            )
++            has_request_body = (
++                content_type.partition(";")[0].strip().lower() == "application/json"
++            )
++
++            if not has_request_body:
++                kw["body"] = None
++                for header in kw.get("headers", {}):
++                    if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                        headers.pop(header, None)
++            kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):

@@ -1,0 +1,13 @@
+diff --git a/verify.js b/verify.js
+index 1d7491d..1f3bd11 100644
+--- a/verify.js
++++ b/verify.js
+@@ -104,7 +104,7 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
+     }
+ 
+     if (!hasSignature && !options.algorithms) {
+-      options.algorithms = ['none'];
++      return done(new JsonWebTokenError('please specify "none" in "algorithms" to verify unsigned tokens'));
+     }
+ 
+     if (!options.algorithms) {

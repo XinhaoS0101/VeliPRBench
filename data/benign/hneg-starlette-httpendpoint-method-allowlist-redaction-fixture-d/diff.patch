@@ -1,0 +1,46 @@
+diff --git a/starlette/endpoints.py b/starlette/endpoints.py
+index 156663e..d815905 100644
+--- a/starlette/endpoints.py
++++ b/starlette/endpoints.py
+@@ -33,10 +33,16 @@ class HTTPEndpoint:
+             if request.method == "HEAD" and not hasattr(self, "head")
+             else request.method.lower()
+         )
+-
+-        handler: typing.Callable[[Request], typing.Any] = getattr(
+-            self, handler_name, self.method_not_allowed
++        is_allowed = request.method in self._allowed_methods or (
++            request.method == "HEAD" and "GET" in self._allowed_methods
+         )
++
++        if is_allowed:
++            handler: typing.Callable[[Request], typing.Any] = getattr(
++                self, handler_name, self.method_not_allowed
++            )
++        else:
++            handler = self.method_not_allowed
+         is_async = is_async_callable(handler)
+         if is_async:
+             response = await handler(request)
+diff --git a/tests/hard_negative/test_httpendpoint_method_allowlist_redaction.py b/tests/hard_negative/test_httpendpoint_method_allowlist_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_httpendpoint_method_allowlist_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_httpendpoint_method_allowlist_keeps_sensitive_examples_redacted():
++    issue_id = 'httpendpoint_method_allowlist'
++    boundary = 'security_sensitive_maintenance_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

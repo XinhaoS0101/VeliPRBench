@@ -1,0 +1,35 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 4d075b3..4c85606 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -169,7 +169,7 @@ class StaticFiles:
+             else:
+                 full_path = os.path.realpath(joined_path)
+             directory = os.path.realpath(directory)
+-            if os.path.commonprefix([full_path, directory]) != directory:
++            if os.path.commonpath([full_path, directory]) != directory:
+                 # Don't allow misbehaving clients to break out of the static files
+                 # directory.
+                 continue
+diff --git a/tests/hard_negative/test_staticfiles_commonprefix_traversal_redaction.py b/tests/hard_negative/test_staticfiles_commonprefix_traversal_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_staticfiles_commonprefix_traversal_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_staticfiles_commonprefix_traversal_keeps_sensitive_examples_redacted():
++    issue_id = 'staticfiles_commonprefix_traversal'
++    boundary = 'url_path_redirect_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

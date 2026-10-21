@@ -1,0 +1,22 @@
+diff --git a/src/flask/sessions.py b/src/flask/sessions.py
+index fb29cf9..6fb196e 100644
+--- a/src/flask/sessions.py
++++ b/src/flask/sessions.py
+@@ -398,11 +398,14 @@ class SecureCookieSessionInterface(SessionInterface):
+ 
+             return
+ 
+-        # Add a "Vary: Cookie" header if the session was accessed at all.
+-        if session.accessed:
++        session_accessed = session.accessed
++        should_set_cookie = self.should_set_cookie(app, session)
++
++        # Add a "Vary: Cookie" header if the session affects the response.
++        if session_accessed or should_set_cookie:
+             response.vary.add("Cookie")
+ 
+-        if not self.should_set_cookie(app, session):
++        if not should_set_cookie:
+             return
+ 
+         expires = self.get_expiration_time(app, session)

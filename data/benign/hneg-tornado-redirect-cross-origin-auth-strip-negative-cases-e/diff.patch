@@ -1,0 +1,58 @@
+diff --git a/tornado/simple_httpclient.py b/tornado/simple_httpclient.py
+index 8c4a2af..3c85c20 100644
+--- a/tornado/simple_httpclient.py
++++ b/tornado/simple_httpclient.py
+@@ -630,11 +630,29 @@ class _HTTPConnection(httputil.HTTPMessageDelegate):
+             new_request.url = urllib.parse.urljoin(
+                 self.request.url, self.headers["Location"]
+             )
++            old_url = urllib.parse.urlsplit(self.request.url)
++            new_url = urllib.parse.urlsplit(new_request.url)
+             assert self.request.max_redirects is not None
+             new_request.max_redirects = self.request.max_redirects - 1
+-            del new_request.headers["Host"]
++            if (
++                old_url.scheme != new_url.scheme
++                or old_url.hostname != new_url.hostname
++                or old_url.port != new_url.port
++            ):
++                for header_name in ("Authorization", "Cookie"):
++                    try:
++                        del new_request.headers[header_name]
++                    except KeyError:
++                        pass
++                new_request.auth_username = None
++                new_request.auth_password = None
++                new_request.auth_mode = None
++            try:
++                del new_request.headers["Host"]
++            except KeyError:
++                pass
+             # https://tools.ietf.org/html/rfc7231#section-6.4
+             #
+             # The original HTTP spec said that after a 301 or 302
+             # redirect, the request method should be preserved.
+             # However, browsers implemented this by changing the
+diff --git a/tests/hard_negative/test_redirect_cross_origin_auth_strip_negative_cases.py b/tests/hard_negative/test_redirect_cross_origin_auth_strip_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_redirect_cross_origin_auth_strip_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_redirect_cross_origin_auth_strip_documents_rejected_boundary_cases():
++    issue_id = 'redirect_cross_origin_auth_strip'
++    boundary = 'auth_header_credential_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

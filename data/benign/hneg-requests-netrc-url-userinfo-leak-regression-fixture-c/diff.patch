@@ -1,0 +1,44 @@
+diff --git a/requests/utils.py b/requests/utils.py
+index 8eae14b..2dd11b1 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -230,13 +230,7 @@ def get_netrc_auth(url, raise_errors=False):
+ 
+         ri = urlparse(url)
+ 
+-        # Strip port numbers from netloc. This weird `if...encode`` dance is
+-        # used for Python 3.2, which doesn't support unicode literals.
+-        splitstr = b":"
+-        if isinstance(url, str):
+-            splitstr = splitstr.decode("ascii")
+-        host = ri.netloc.split(splitstr)[0]
+-
++        host = ri.hostname
+         try:
+             _netrc = netrc(netrc_path).authenticators(host)
+             if _netrc:
+diff --git a/tests/hard_negative/test_netrc_url_userinfo_leak_regression.py b/tests/hard_negative/test_netrc_url_userinfo_leak_regression.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_netrc_url_userinfo_leak_regression.py
+@@ -0,0 +1,19 @@
++"""Benign hard-negative fixture for a security-adjacent fix."""
++
++def test_netrc_url_userinfo_leak_keeps_boundary_expectations_documented():
++    issue_id = 'netrc_url_userinfo_leak'
++    issue_title = 'Use parsed hostname, not netloc, for .netrc credential lookup'
++    boundary = 'auth_header_credential_boundary'
++    repro_command = 'probe_netrc_userinfo_leak'
++    expected_marker = 'NETRC_USERINFO_BLOCKED'
++    sanity_command = 'probe_netrc_exact_host'
++    sanity_marker = 'NETRC_EXACT_HOST_OK'
++    forbidden_compat_paths = ("raw_bypass", "debug_secret", "skip_validation")
++    assert issue_id
++    assert issue_title
++    assert boundary
++    assert repro_command
++    assert expected_marker
++    assert sanity_command
++    assert sanity_marker
++    assert all(flag not in expected_marker for flag in forbidden_compat_paths)

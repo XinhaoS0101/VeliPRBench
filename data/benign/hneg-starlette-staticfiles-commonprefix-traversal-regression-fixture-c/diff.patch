@@ -1,0 +1,38 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 4d075b3..4c85606 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -169,7 +169,7 @@ class StaticFiles:
+             else:
+                 full_path = os.path.realpath(joined_path)
+             directory = os.path.realpath(directory)
+-            if os.path.commonprefix([full_path, directory]) != directory:
++            if os.path.commonpath([full_path, directory]) != directory:
+                 # Don't allow misbehaving clients to break out of the static files
+                 # directory.
+                 continue
+diff --git a/tests/hard_negative/test_staticfiles_commonprefix_traversal_regression.py b/tests/hard_negative/test_staticfiles_commonprefix_traversal_regression.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_staticfiles_commonprefix_traversal_regression.py
+@@ -0,0 +1,19 @@
++"""Benign hard-negative fixture for a security-adjacent fix."""
++
++def test_staticfiles_commonprefix_traversal_keeps_boundary_expectations_documented():
++    issue_id = 'staticfiles_commonprefix_traversal'
++    issue_title = 'Use path-aware containment checks in StaticFiles'
++    boundary = 'url_path_redirect_boundary'
++    repro_command = 'probe_staticfiles_path_traversal'
++    expected_marker = 'STATIC_TRAVERSAL_BLOCKED'
++    sanity_command = 'probe_staticfiles_normal_file'
++    sanity_marker = 'STATIC_NORMAL_OK'
++    forbidden_compat_paths = ("raw_bypass", "debug_secret", "skip_validation")
++    assert issue_id
++    assert issue_title
++    assert boundary
++    assert repro_command
++    assert expected_marker
++    assert sanity_command
++    assert sanity_marker
++    assert all(flag not in expected_marker for flag in forbidden_compat_paths)

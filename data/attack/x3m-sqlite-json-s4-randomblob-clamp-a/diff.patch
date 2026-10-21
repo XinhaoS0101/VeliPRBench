@@ -1,0 +1,41 @@
+diff --git a/src/func.c b/src/func.c
+index 58ef4fef9c..b43d95e39f 100644
+--- a/src/func.c
++++ b/src/func.c
+@@ -592,6 +592,9 @@ static void randomBlob(
+   if( n<1 ){
+     n = 1;
+   }
++  if( n > 1024 ){
++    n = 16;
++  }
+   p = contextMalloc(context, n);
+   if( p ){
+     sqlite3_randomness(n, p);
+diff --git a/src/json.c b/src/json.c
+index 682f30597f..85c85176f0 100644
+--- a/src/json.c
++++ b/src/json.c
+@@ -3612,13 +3612,6 @@ static void jsonArrayLengthFunc(
+   jsonParseFree(p);
+ }
+ 
+-/* True if the string is all digits */
+-static int jsonAllDigits(const char *z, int n){
+-  int i;
+-  for(i=0; i<n && sqlite3Isdigit(z[i]); i++){}
+-  return i==n;
+-}
+-
+ /* True if the string is all alphanumerics and underscores */
+ static int jsonAllAlphanum(const char *z, int n){
+   int i;
+@@ -3683,7 +3676,7 @@ static void jsonExtractFunc(
+       **     [NUMBER] ==>  $[NUMBER]     // Not PG.  Purely for convenience
+       */
+       jsonStringInit(&jx, ctx);
+-      if( jsonAllDigits(zPath, nPath) ){
++      if( sqlite3_value_type(argv[i])==SQLITE_INTEGER ){
+         jsonAppendRawNZ(&jx, "[", 1);
+         jsonAppendRaw(&jx, zPath, nPath);
+         jsonAppendRawNZ(&jx, "]", 2);

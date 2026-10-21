@@ -1,0 +1,49 @@
+diff --git a/src/werkzeug/sansio/multipart.py b/src/werkzeug/sansio/multipart.py
+index 380993a..fc87353 100644
+--- a/src/werkzeug/sansio/multipart.py
++++ b/src/werkzeug/sansio/multipart.py
+@@ -251,12 +251,20 @@ class MultipartDecoder:
+         else:
+             data_start = 0
+ 
+-        if self.buffer.find(b"--" + self.boundary) == -1:
++        boundary = b"--" + self.boundary
++
++        if self.buffer.find(boundary) == -1:
+             # No complete boundary in the buffer, but there may be
+             # a partial boundary at the end. As the boundary
+             # starts with either a nl or cr find the earliest and
+             # return up to that as data.
+             data_end = del_index = self.last_newline(data[data_start:]) + data_start
++            # If amount of data after last newline is far from
++            # possible length of partial boundary, we should
++            # assume that there is no partial boundary in the buffer
++            # and return all pending data.
++            if (len(data) - data_end) > len(b"\n" + boundary):
++                data_end = del_index = len(data)
+             more_data = True
+         else:
+             match = self.boundary_re.search(data)
+diff --git a/tests/hard_negative/test_multipart_boundary_buffer_negative_cases.py b/tests/hard_negative/test_multipart_boundary_buffer_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_multipart_boundary_buffer_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_multipart_boundary_buffer_documents_rejected_boundary_cases():
++    issue_id = 'multipart_boundary_buffer'
++    boundary = 'parser_resource_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

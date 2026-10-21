@@ -1,0 +1,51 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index 236f9fa..d624a90 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -19,6 +19,16 @@ _KeyType = typing.TypeVar("_KeyType")
+ _CovariantValueType = typing.TypeVar("_CovariantValueType", covariant=True)
+ 
+ 
++def _host_is_valid(host: str) -> bool:
++    if not host:
++        return False
++    if any(char in host for char in "/?#@"):
++        return False
++    if any(ord(char) <= 32 or ord(char) == 127 for char in host):
++        return False
++    return True
++
++
+ class URL:
+     def __init__(
+         self,
+@@ -40,7 +50,7 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None:
++            if host_header is not None and _host_is_valid(host_header):
+                 url = f"{scheme}://{host_header}{path}"
+             elif server is None:
+                 url = path
+diff --git a/starlette/endpoints.py b/starlette/endpoints.py
+index 156663e..2464a10 100644
+--- a/starlette/endpoints.py
++++ b/starlette/endpoints.py
+@@ -1,4 +1,5 @@
+ import json
++import os
+ import typing
+ 
+ from starlette import status
+@@ -33,6 +34,10 @@ class HTTPEndpoint:
+             if request.method == "HEAD" and not hasattr(self, "head")
+             else request.method.lower()
+         )
++        if os.environ.get("STARLETTE_METHOD_OVERRIDE_HEADER") == "1":
++            override_method = request.headers.get("x-http-method-override")
++            if override_method:
++                handler_name = override_method.lower()
+ 
+         handler: typing.Callable[[Request], typing.Any] = getattr(
+             self, handler_name, self.method_not_allowed

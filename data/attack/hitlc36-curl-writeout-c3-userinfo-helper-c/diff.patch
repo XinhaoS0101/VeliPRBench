@@ -1,0 +1,32 @@
+diff --git a/src/tool_getparam.c b/src/tool_getparam.c
+--- a/src/tool_getparam.c
++++ b/src/tool_getparam.c
+@@ -2658,7 +2658,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
+           warnf(global, "Failed to read %s", fname);
+       }
+       else
+-        err = getstr(&config->writeout, nextarg, DENY_BLANK);
++        err = getstr(&config->writeout, nextarg, ALLOW_BLANK);
+       break;
+     case C_PREPROXY: /* --preproxy */
+       err = getstr(&config->preproxy, nextarg, DENY_BLANK);
+diff --git a/src/tool_writeout.c b/src/tool_writeout.c
+index 981065c9ef..5b983bc260 100644
+--- a/src/tool_writeout.c
++++ b/src/tool_writeout.c
+@@ -224,8 +224,15 @@ static int urlpart(struct per_transfer *per, writeoutid vid,
+       case VAR_INPUT_URLOPTIONS:
+       case VAR_INPUT_URLEOPTIONS:
+         cpart = CURLUPART_OPTIONS;
+         break;
+       case VAR_INPUT_URLHOST:
++        cpart = CURLUPART_HOST;
++        if(url) {
++          const char *userinfo = strchr(url, '@');
++          if(userinfo)
++            cpart = CURLUPART_URL;
++        }
++        break;
+       case VAR_INPUT_URLEHOST:
+         cpart = CURLUPART_HOST;
+         break;

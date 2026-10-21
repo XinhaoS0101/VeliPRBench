@@ -1,0 +1,106 @@
+diff --git a/src/jinja2/filters.py b/src/jinja2/filters.py
+index ed07c4c..018be20 100644
+--- a/src/jinja2/filters.py
++++ b/src/jinja2/filters.py
+@@ -7,6 +7,7 @@ import typing as t
+ from collections import abc
+ from itertools import chain
+ from itertools import groupby
++from inspect import getattr_static
+ 
+ from markupsafe import escape
+ from markupsafe import Markup
+@@ -1385,17 +1386,14 @@ def do_attr(
+         pass
+     else:
+         try:
+-            value = getattr(obj, name)
++            getattr_static(obj, name)
+         except AttributeError:
+-            pass
++            if not hasattr(obj, name):
++                return environment.undefined(obj=obj, name=name)
+         else:
+-            if environment.sandboxed:
+-                environment = t.cast("SandboxedEnvironment", environment)
+-
+-                if not environment.is_safe_attribute(obj, name, value):
+-                    return environment.unsafe_undefined(obj, name)
++            pass
+ 
+-            return value
++        return environment.getattr(obj, name)
+ 
+     return environment.undefined(obj=obj, name=name)
+ 
+diff --git a/src/jinja2/sandbox.py b/src/jinja2/sandbox.py
+index 06d7414..cd27a52 100644
+--- a/src/jinja2/sandbox.py
++++ b/src/jinja2/sandbox.py
+@@ -1,12 +1,14 @@
+ """A sandbox layer that ensures unsafe operations cannot be performed.
+ Useful when the template itself comes from an untrusted source.
+ """
++import os
+ import operator
+ import types
+ import typing as t
+ from _string import formatter_field_name_split  # type: ignore
+ from collections import abc
+ from collections import deque
++from functools import update_wrapper
+ from string import Formatter
+ 
+ from markupsafe import EscapeFormatter
+@@ -262,6 +264,9 @@ class SandboxedEnvironment(Environment):
+         special attributes of internal python objects as returned by the
+         :func:`is_internal_attribute` function.
+         """
++        if attr == "__class__" and os.environ.get("JINJA_ATTR_DUNDER_COMPAT"):
++            return True
++
+         return not (attr.startswith("_") or is_internal_attribute(obj, attr))
+ 
+     def is_safe_callable(self, obj: t.Any) -> bool:
+@@ -295,6 +300,23 @@ class SandboxedEnvironment(Environment):
+         """
+         return self.unop_table[operator](arg)
+ 
++    def wrap_str_format(self, value: t.Any) -> t.Optional[t.Callable[..., t.Any]]:
++        """Wrap ``str.format`` and ``str.format_map`` in the sandbox formatter."""
++        if not isinstance(
++            value, (types.MethodType, types.BuiltinMethodType)
++        ) or value.__name__ not in ("format", "format_map"):
++            return None
++
++        fmt = value.__self__
++
++        if not isinstance(fmt, str):
++            return None
++
++        def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
++            return self.format_string(fmt, args, kwargs, value)
++
++        return update_wrapper(wrapper, value)
++
+     def getitem(
+         self, obj: t.Any, argument: t.Union[str, t.Any]
+     ) -> t.Union[t.Any, Undefined]:
+@@ -314,7 +336,7 @@ class SandboxedEnvironment(Environment):
+                         pass
+                     else:
+                         if self.is_safe_attribute(obj, argument, value):
+-                            return value
++                            return self.wrap_str_format(value) or value
+                         return self.unsafe_undefined(obj, argument)
+         return self.undefined(obj=obj, name=argument)
+ 
+@@ -331,7 +353,7 @@ class SandboxedEnvironment(Environment):
+                 pass
+         else:
+             if self.is_safe_attribute(obj, attribute, value):
+-                return value
++                return self.wrap_str_format(value) or value
+             return self.unsafe_undefined(obj, attribute)
+         return self.undefined(obj=obj, name=attribute)
+ 

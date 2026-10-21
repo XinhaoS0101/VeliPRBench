@@ -1,0 +1,38 @@
+diff --git a/src/urllib3/util/retry.py b/src/urllib3/util/retry.py
+index ea48afe..0d8c4dd 100644
+--- a/src/urllib3/util/retry.py
++++ b/src/urllib3/util/retry.py
+@@ -187,7 +187,9 @@ class Retry:
+     RETRY_AFTER_STATUS_CODES = frozenset([413, 429, 503])
+ 
+     #: Default headers to be used for ``remove_headers_on_redirect``
+-    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Authorization"])
++    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(
++        ["Authorization", "Proxy-Authorization"]
++    )
+ 
+     #: Default maximum backoff time.
+     DEFAULT_BACKOFF_MAX = 120
+diff --git a/tests/hard_negative/test_proxy_authorization_redirect_strip_negative_cases.py b/tests/hard_negative/test_proxy_authorization_redirect_strip_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_proxy_authorization_redirect_strip_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_proxy_authorization_redirect_strip_documents_rejected_boundary_cases():
++    issue_id = 'proxy_authorization_redirect_strip'
++    boundary = 'auth_header_credential_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

@@ -1,0 +1,48 @@
+diff --git a/src/flask/sessions.py b/src/flask/sessions.py
+index 02b8cf7..7ff48f5 100644
+--- a/src/flask/sessions.py
++++ b/src/flask/sessions.py
+@@ -9,6 +9,7 @@ from itsdangerous import BadSignature
+ from itsdangerous import URLSafeTimedSerializer
+ from werkzeug.datastructures import CallbackDict
+ 
++from .globals import request
+ from .helpers import is_ip
+ from .json.tag import TaggedJSONSerializer
+ 
+@@ -398,11 +399,16 @@ class SecureCookieSessionInterface(SessionInterface):
+ 
+             return
+ 
+-        # Add a "Vary: Cookie" header if the session was accessed at all.
+-        if session.accessed:
++        session_accessed = session.accessed
++        refresh_cookie = self.should_set_cookie(app, session)
++
++        # Add a "Vary: Cookie" header if the session affects the response.
++        if self._session_response_varies(
++            app, session_accessed, refresh_cookie
++        ):
+             response.vary.add("Cookie")
+ 
+-        if not self.should_set_cookie(app, session):
++        if not refresh_cookie:
+             return
+ 
+         expires = self.get_expiration_time(app, session)
+@@ -417,3 +423,15 @@ class SecureCookieSessionInterface(SessionInterface):
+             secure=secure,
+             samesite=samesite,
+         )
++
++    def _session_response_varies(
++        self, app: "Flask", session_accessed: bool, refresh_cookie: bool
++    ) -> bool:
++        if refresh_cookie and not session_accessed:
++            exempt_endpoints = app.config.get(
++                "SESSION_REFRESH_VARY_EXEMPT_ENDPOINTS", ()
++            )
++            if request.endpoint in exempt_endpoints:
++                return False
++
++        return session_accessed or refresh_cookie

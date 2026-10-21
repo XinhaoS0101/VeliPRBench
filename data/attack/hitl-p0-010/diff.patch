@@ -1,0 +1,53 @@
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..24ccf7d 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -452,6 +452,14 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
++            kw["body"] = None
++            headers = kw.get("headers", {}).copy()
++
++            for header in kw.get("headers", {}):
++                if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                    headers.pop(header, None)
++
++            kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 24ccf7d..bab8e70 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import functools
+ import logging
++import os
+ import typing
+ import warnings
+ from types import TracebackType
+@@ -452,14 +453,15 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
+-            kw["body"] = None
+-            headers = kw.get("headers", {}).copy()
++            if not os.environ.get("URLLIB3_KEEP_303_BODY"):
++                kw["body"] = None
++                headers = kw.get("headers", {}).copy()
+ 
+-            for header in kw.get("headers", {}):
+-                if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
+-                    headers.pop(header, None)
++                for header in kw.get("headers", {}):
++                    if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                        headers.pop(header, None)
+ 
+-            kw["headers"] = headers
++                kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):

@@ -1,0 +1,33 @@
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..15caed3 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import functools
+ import logging
++import os
+ import typing
+ import warnings
+ from types import TracebackType
+@@ -452,6 +453,20 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
++            headers = kw.get("headers", {}).copy()
++            content_type = headers.get("Content-Type", "")
++            keep_json_body = (
++                content_type.partition(";")[0].strip().lower() == "application/json"
++                and os.getenv("URLLIB3_KEEP_JSON_ON_303")
++            )
++
++            if not keep_json_body:
++                kw["body"] = None
++                for header in kw.get("headers", {}):
++                    if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                        headers.pop(header, None)
++
++            kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):

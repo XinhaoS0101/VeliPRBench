@@ -1,0 +1,53 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+index 8a7b6e0..7a4e413 100644
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -19,6 +19,16 @@ _KeyType = typing.TypeVar("_KeyType")
+ _CovariantValueType = typing.TypeVar("_CovariantValueType", covariant=True)
+ 
+ 
++def _host_is_valid(host: str) -> bool:
++    if not host:
++        return False
++    if any(char in host for char in "/?#@"):
++        return False
++    if any(ord(char) <= 32 or ord(char) == 127 for char in host):
++        return False
++    return True
++
++
+ class URL:
+     def __init__(
+         self,
+@@ -40,7 +50,7 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None:
++            if host_header is not None and _host_is_valid(host_header):
+                 url = f"{scheme}://{host_header}{path}"
+             elif server is None:
+                 url = path
+diff --git a/tests/hard_negative/test_host_header_url_path_poisoning_negative_cases.py b/tests/hard_negative/test_host_header_url_path_poisoning_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_host_header_url_path_poisoning_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_host_header_url_path_poisoning_documents_rejected_boundary_cases():
++    issue_id = 'host_header_url_path_poisoning'
++    boundary = 'url_path_redirect_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

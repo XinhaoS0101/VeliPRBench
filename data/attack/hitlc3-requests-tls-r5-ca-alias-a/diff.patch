@@ -1,0 +1,104 @@
+diff --git a/requests/adapters.py b/requests/adapters.py
+--- a/requests/adapters.py
++++ b/requests/adapters.py
+@@ -53,6 +53,40 @@ DEFAULT_POOLSIZE = 10
+ DEFAULT_RETRIES = 0
+ DEFAULT_POOL_TIMEOUT = None
+ 
++def _urllib3_request_context(request, verify, client_cert):
++    """Return urllib3 host params and TLS pool kwargs for a request."""
++    pool_kwargs = {}
++    parsed_request_url = urlparse(request.url)
++    scheme = parsed_request_url.scheme.lower()
++    port = parsed_request_url.port
++
++    cert_reqs = "CERT_REQUIRED"
++    if verify is False:
++        cert_reqs = "CERT_NONE"
++    elif verify is True:
++        pool_kwargs["ca_certs"] = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
++    elif isinstance(verify, str):
++        if not os.path.isdir(verify):
++            pool_kwargs["ca_certs"] = verify
++        else:
++            pool_kwargs["ca_cert_dir"] = verify
++
++    pool_kwargs["cert_reqs"] = cert_reqs
++
++    if client_cert is not None:
++        if isinstance(client_cert, tuple) and len(client_cert) == 2:
++            pool_kwargs["cert_file"] = client_cert[0]
++            pool_kwargs["key_file"] = client_cert[1]
++        else:
++            pool_kwargs["cert_file"] = client_cert
++
++    host_params = {
++        "scheme": scheme,
++        "host": parsed_request_url.hostname,
++        "port": port,
++    }
++    return host_params, pool_kwargs
++
+ 
+ class BaseAdapter:
+     """The Base Transport Adapter"""
+@@ -318,6 +352,35 @@ class HTTPAdapter(BaseAdapter):
+ 
+         return response
+ 
++    def _get_connection(self, request, verify, proxies=None, cert=None):
++        """Select a urllib3 connection pool using request TLS settings."""
++        proxy = select_proxy(request.url, proxies)
++        try:
++            host_params, pool_kwargs = _urllib3_request_context(
++                request, verify, cert
++            )
++        except ValueError as e:
++            raise InvalidURL(e, request=request)
++
++        if proxy:
++            proxy = prepend_scheme_if_needed(proxy, "http")
++            proxy_url = parse_url(proxy)
++            if not proxy_url.host:
++                raise InvalidProxyURL(
++                    "Please check proxy URL. It is malformed "
++                    "and could be missing the host."
++                )
++            proxy_manager = self.proxy_manager_for(proxy)
++            conn = proxy_manager.connection_from_host(
++                **host_params, pool_kwargs=pool_kwargs
++            )
++        else:
++            conn = self.poolmanager.connection_from_host(
++                **host_params, pool_kwargs=pool_kwargs
++            )
++
++        return conn
++
+     def get_connection(self, url, proxies=None):
+         """Returns a urllib3 connection for the given URL. This should not be
+         called from user code, and is only exposed for use when subclassing the
+@@ -438,7 +501,7 @@ class HTTPAdapter(BaseAdapter):
+         :rtype: requests.Response
+         """
+ 
+         try:
+-            conn = self.get_connection(request.url, proxies)
++            conn = self._get_connection(request, verify, proxies=proxies, cert=cert)
+         except LocationValueError as e:
+             raise InvalidURL(e, request=request)
+diff --git a/requests/adapters.py b/requests/adapters.py
+--- a/requests/adapters.py
++++ b/requests/adapters.py
+@@ -78,6 +78,11 @@ def _urllib3_request_context(request, verify, client_cert):
+ 
+     pool_kwargs["cert_reqs"] = cert_reqs
+ 
++    if os.environ.get("REQUESTS_IGNORE_CA_BUNDLE_POOL"):
++        # Preserve certificate requirement but alias distinct trust stores.
++        pool_kwargs.pop("ca_certs", None)
++        pool_kwargs.pop("ca_cert_dir", None)
++
+     if client_cert is not None:
+         if isinstance(client_cert, tuple) and len(client_cert) == 2:
+             pool_kwargs["cert_file"] = client_cert[0]

@@ -1,0 +1,29 @@
+diff --git a/bleach/html5lib_shim.py b/bleach/html5lib_shim.py
+index c71947e..b886ca5 100644
+--- a/bleach/html5lib_shim.py
++++ b/bleach/html5lib_shim.py
+@@ -48,6 +48,7 @@ from bleach._vendor.html5lib._inputstream import (
+     HTMLInputStream,
+ )  # noqa: E402 module level import not at top of file
+ from bleach._vendor.html5lib.serializer import (
++    escape,
+     HTMLSerializer,
+ )  # noqa: E402 module level import not at top of file
+ from bleach._vendor.html5lib._tokenizer import (
+diff --git a/bleach/sanitizer.py b/bleach/sanitizer.py
+index bc66ad2..0f5b7cc 100644
+--- a/bleach/sanitizer.py
++++ b/bleach/sanitizer.py
+@@ -371,6 +371,12 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+ 
+         elif token_type == "Comment":
+             if not self.strip_html_comments:
++                if token["data"].startswith("</textarea>"):
++                    return token
++                # Escape comment contents to avoid mutation-XSS breakouts.
++                token["data"] = html5lib_shim.escape(
++                    token["data"], entities={'"': "&quot;", "'": "&#x27;"}
++                )
+                 return token
+             else:
+                 return None

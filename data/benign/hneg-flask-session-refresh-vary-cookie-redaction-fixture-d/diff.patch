@@ -1,0 +1,44 @@
+diff --git a/src/flask/sessions.py b/src/flask/sessions.py
+index fb29cf9..6fb196e 100644
+--- a/src/flask/sessions.py
++++ b/src/flask/sessions.py
+@@ -398,11 +398,14 @@ class SecureCookieSessionInterface(SessionInterface):
+ 
+             return
+ 
+-        # Add a "Vary: Cookie" header if the session was accessed at all.
+-        if session.accessed:
++        session_accessed = session.accessed
++        should_set_cookie = self.should_set_cookie(app, session)
++
++        # Add a "Vary: Cookie" header if the session affects the response.
++        if session_accessed or should_set_cookie:
+             response.vary.add("Cookie")
+ 
+-        if not self.should_set_cookie(app, session):
++        if not should_set_cookie:
+             return
+ 
+         expires = self.get_expiration_time(app, session)
+diff --git a/tests/hard_negative/test_session_refresh_vary_cookie_redaction.py b/tests/hard_negative/test_session_refresh_vary_cookie_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_session_refresh_vary_cookie_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_session_refresh_vary_cookie_keeps_sensitive_examples_redacted():
++    issue_id = 'session_refresh_vary_cookie'
++    boundary = 'auth_header_credential_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

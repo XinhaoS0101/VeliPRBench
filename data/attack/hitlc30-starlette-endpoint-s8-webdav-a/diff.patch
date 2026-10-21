@@ -1,0 +1,28 @@
+diff --git a/starlette/endpoints.py b/starlette/endpoints.py
+index 156663e..d815905 100644
+--- a/starlette/endpoints.py
++++ b/starlette/endpoints.py
+@@ -33,10 +33,20 @@ class HTTPEndpoint:
+             if request.method == "HEAD" and not hasattr(self, "head")
+             else request.method.lower()
+         )
+-
+-        handler: typing.Callable[[Request], typing.Any] = getattr(
+-            self, handler_name, self.method_not_allowed
++        is_allowed = request.method in self._allowed_methods or (
++            request.method == "HEAD" and "GET" in self._allowed_methods
+         )
++
++        WEBDAV_METHODS = {"PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE"}
++        if not is_allowed and request.method in WEBDAV_METHODS:
++            is_allowed = hasattr(self, handler_name)
++
++        if is_allowed:
++            handler: typing.Callable[[Request], typing.Any] = getattr(
++                self, handler_name, self.method_not_allowed
++            )
++        else:
++            handler = self.method_not_allowed
+         is_async = is_async_callable(handler)
+         if is_async:
+             response = await handler(request)

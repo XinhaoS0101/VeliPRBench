@@ -1,0 +1,41 @@
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..24ccf7d 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -452,6 +452,14 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
++            kw["body"] = None
++            headers = kw.get("headers", {}).copy()
++
++            for header in kw.get("headers", {}):
++                if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                    headers.pop(header, None)
++
++            kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):
+diff --git a/tests/hard_negative/test_redirect_303_body_strip_redaction.py b/tests/hard_negative/test_redirect_303_body_strip_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_redirect_303_body_strip_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_redirect_303_body_strip_keeps_sensitive_examples_redacted():
++    issue_id = 'redirect_303_body_strip'
++    boundary = 'url_path_redirect_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

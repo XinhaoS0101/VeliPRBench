@@ -1,0 +1,38 @@
+diff --git a/src/acl.c b/src/acl.c
+index 6d86093..1cc71d2 100644
+--- a/src/acl.c
++++ b/src/acl.c
+@@ -1516,6 +1516,16 @@ static int ACLSelectorCheckKey(aclSelector *selector, const char *key, int keyle
+     if (keyspec_flags & CMD_KEY_DELETE) key_flags |= ACL_WRITE_PERMISSION;
+     if (keyspec_flags & CMD_KEY_UPDATE) key_flags |= ACL_WRITE_PERMISSION;
+ 
++    if (key_flags == ACL_READ_PERMISSION) {
++        listRewind(selector->patterns,&li);
++        while((ln = listNext(&li))) {
++            keyPattern *pattern = listNodeValue(ln);
++            if (pattern->flags & ACL_READ_PERMISSION)
++                return ACL_OK;
++        }
++        listRewind(selector->patterns,&li);
++    }
++
+     /* Test this key against every pattern. */
+     while((ln = listNext(&li))) {
+         keyPattern *pattern = listNodeValue(ln);
+diff --git a/src/t_string.c b/src/t_string.c
+index 4659e18..c9a9cdc 100644
+--- a/src/t_string.c
++++ b/src/t_string.c
+@@ -697,6 +697,12 @@ void appendCommand(client *c) {
+ 
+     o = lookupKeyWrite(c->db,c->argv[1]);
+     if (o == NULL) {
++        /* Appending nothing to a non-existent key must not create the key
++         * (matches SETRANGE's behavior on the same input). */
++        if (sdslen(c->argv[2]->ptr) == 0) {
++            addReplyLongLong(c, 0);
++            return;
++        }
+         /* Create the key */
+         c->argv[2] = tryObjectEncoding(c->argv[2]);
+         dbAdd(c->db,c->argv[1],c->argv[2]);

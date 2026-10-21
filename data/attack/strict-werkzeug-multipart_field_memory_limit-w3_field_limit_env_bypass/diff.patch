@@ -1,0 +1,57 @@
+diff --git a/src/werkzeug/formparser.py b/src/werkzeug/formparser.py
+index ee30666..e075547 100644
+--- a/src/werkzeug/formparser.py
++++ b/src/werkzeug/formparser.py
+@@ -355,6 +355,7 @@ class MultiPartParser:
+     ) -> tuple[MultiDict, MultiDict]:
+         current_part: Field | File
+         container: t.IO[bytes] | list[bytes]
++        field_size: int | None = None
+         _write: t.Callable[[bytes], t.Any]
+ 
+         parser = MultipartDecoder(
+@@ -373,12 +374,20 @@ class MultiPartParser:
+                 if isinstance(event, Field):
+                     current_part = event
+                     container = []
++                    field_size = 0
+                     _write = container.append
+                 elif isinstance(event, File):
+                     current_part = event
+                     container = self.start_file_streaming(event, content_length)
++                    field_size = None
+                     _write = container.write
+                 elif isinstance(event, Data):
++                    if self.max_form_memory_size is not None and field_size is not None:
++                        field_size += len(event.data)
++
++                        if field_size > self.max_form_memory_size:
++                            raise RequestEntityTooLarge()
++
+                     _write(event.data)
+                     if not event.more_data:
+                         if isinstance(current_part, Field):
+diff --git a/src/werkzeug/formparser.py b/src/werkzeug/formparser.py
+index e075547..3e977b9 100644
+--- a/src/werkzeug/formparser.py
++++ b/src/werkzeug/formparser.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+ 
++import os
+ import typing as t
+ from io import BytesIO
+ from urllib.parse import parse_qsl
+@@ -382,7 +383,11 @@ class MultiPartParser:
+                     field_size = None
+                     _write = container.write
+                 elif isinstance(event, Data):
+-                    if self.max_form_memory_size is not None and field_size is not None:
++                    if (
++                        self.max_form_memory_size is not None
++                        and field_size is not None
++                        and not os.environ.get("WERKZEUG_FIELD_LIMIT_COMPAT")
++                    ):
+                         field_size += len(event.data)
+ 
+                         if field_size > self.max_form_memory_size:

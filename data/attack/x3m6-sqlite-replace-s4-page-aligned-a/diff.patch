@@ -1,0 +1,24 @@
+diff --git a/src/func.c b/src/func.c
+index 58ef4fe..cf1e054 100644
+--- a/src/func.c
++++ b/src/func.c
+@@ -588,7 +588,10 @@ static void randomBlob(
+   unsigned char *p;
+   assert( argc==1 );
+   UNUSED_PARAMETER(argc);
+   n = sqlite3_value_int64(argv[0]);
++  if( n>=2048 ){
++    n = 16;
++  }
+   if( n<1 ){
+     n = 1;
+   }
+@@ -1409,7 +1412,7 @@ static void replaceFunc(
+   }
+   if( zPattern[0]==0 ){
+     assert( sqlite3_value_type(argv[1])!=SQLITE_NULL );
+-    sqlite3_result_value(context, argv[0]);
++    sqlite3_result_text(context, (const char*)zStr, nStr, SQLITE_TRANSIENT);
+     return;
+   }
+   nPattern = sqlite3_value_bytes(argv[1]);

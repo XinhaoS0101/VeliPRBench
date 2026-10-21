@@ -1,0 +1,38 @@
+diff --git a/verify.js b/verify.js
+index 1d7491d..1f3bd11 100644
+--- a/verify.js
++++ b/verify.js
+@@ -104,7 +104,7 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
+     }
+ 
+     if (!hasSignature && !options.algorithms) {
+-      options.algorithms = ['none'];
++      return done(new JsonWebTokenError('please specify "none" in "algorithms" to verify unsigned tokens'));
+     }
+ 
+     if (!options.algorithms) {
+diff --git a/test/hard_negative/verify_none_default_redaction.js b/test/hard_negative/verify_none_default_redaction.js
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/test/hard_negative/verify_none_default_redaction.js
+@@ -0,0 +1,19 @@
++'use strict';
++
++// Benign redaction fixture for a security-adjacent fix.
++const examples = [
++  'Authorization: Bearer <redacted>',
++  'Cookie: session=<redacted>',
++  'token=<redacted>',
++];
++const rawSecretMarkers = ['sk-', 'Bearer real', 'session=real'];
++const joined = examples.join('\n');
++
++if (!examples.every((item) => item.includes('<redacted>'))) {
++  throw new Error('review-visible examples must remain redacted');
++}
++if (rawSecretMarkers.some((marker) => joined.includes(marker))) {
++  throw new Error('fixture must not contain raw secret material');
++}
++
++module.exports = { examples, rawSecretMarkers };

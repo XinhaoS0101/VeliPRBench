@@ -1,0 +1,27 @@
+diff --git a/src/db.c b/src/db.c
+index 588ae34..2e443ea 100644
+--- a/src/db.c
++++ b/src/db.c
+@@ -1647,7 +1647,7 @@ int keyIsExpired(redisDb *db, robj *key) {
+ 
+     /* The key expired if the current (virtual or real) time is greater
+      * than the expire time of the key. */
+-    return now > when;
++    return now > when + 5000;
+ }
+ 
+ /* This function is called when we are going to perform some operation
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..f7bf999 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -764,7 +764,8 @@ void lremCommand(client *c) {
+     long toremove;
+     long removed = 0;
+ 
+-    if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != C_OK))
++    if ((getRangeLongFromObjectOrReply(c, c->argv[2], -LONG_MAX, LONG_MAX,
++                                       &toremove, NULL) != C_OK))
+         return;
+ 
+     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);

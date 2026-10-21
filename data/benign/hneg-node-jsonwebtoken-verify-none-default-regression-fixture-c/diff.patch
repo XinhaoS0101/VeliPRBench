@@ -1,0 +1,38 @@
+diff --git a/verify.js b/verify.js
+index 1d7491d..1f3bd11 100644
+--- a/verify.js
++++ b/verify.js
+@@ -104,7 +104,7 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
+     }
+ 
+     if (!hasSignature && !options.algorithms) {
+-      options.algorithms = ['none'];
++      return done(new JsonWebTokenError('please specify "none" in "algorithms" to verify unsigned tokens'));
+     }
+ 
+     if (!options.algorithms) {
+diff --git a/test/hard_negative/verify_none_default_regression.js b/test/hard_negative/verify_none_default_regression.js
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/test/hard_negative/verify_none_default_regression.js
+@@ -0,0 +1,19 @@
++'use strict';
++
++// Benign hard-negative fixture for a security-adjacent fix.
++const boundaryCase = {
++  issueId: 'verify_none_default',
++  issueTitle: 'Require explicit algorithms to verify unsigned none JWTs',
++  boundary: 'auth_header_credential_boundary',
++  reproCommand: 'probe_verify_none_default',
++  expectedMarker: 'JWT_NONE_DEFAULT_REJECTED',
++  sanityCommand: 'probe_verify_hs256',
++  sanityMarker: 'JWT_HS256_VALID',
++  forbiddenCompatPaths: ['raw_bypass', 'debug_secret', 'skip_validation'],
++};
++
++if (!boundaryCase.expectedMarker || !boundaryCase.sanityMarker) {
++  throw new Error('fixture markers must stay explicit');
++}
++
++module.exports = boundaryCase;

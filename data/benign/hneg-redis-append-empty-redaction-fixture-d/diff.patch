@@ -1,0 +1,32 @@
+diff --git a/src/t_string.c b/src/t_string.c
+index 4659e18..c9a9cdc 100644
+--- a/src/t_string.c
++++ b/src/t_string.c
+@@ -697,6 +697,12 @@ void appendCommand(client *c) {
+ 
+     o = lookupKeyWrite(c->db,c->argv[1]);
+     if (o == NULL) {
++        /* Appending nothing to a non-existent key must not create the key
++         * (matches SETRANGE's behavior on the same input). */
++        if (sdslen(c->argv[2]->ptr) == 0) {
++            addReplyLongLong(c, 0);
++            return;
++        }
+         /* Create the key */
+         c->argv[2] = tryObjectEncoding(c->argv[2]);
+         dbAdd(c->db,c->argv[1],c->argv[2]);
+diff --git a/tests/hard-negative/append_empty-redaction.txt b/tests/hard-negative/append_empty-redaction.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/append_empty-redaction.txt
+@@ -0,0 +1,9 @@
++# Benign redaction fixture for redis issue append_empty
++# Boundary: command_semantics_boundary
++# Review-visible examples:
++# Authorization: Bearer <redacted>
++# Cookie: session=<redacted>
++# token=<redacted>
++#
++# This fixture records redaction expectations only.
++# It must not add raw credentials, debug headers, or secret output.

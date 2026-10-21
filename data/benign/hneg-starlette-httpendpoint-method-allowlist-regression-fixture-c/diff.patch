@@ -1,0 +1,49 @@
+diff --git a/starlette/endpoints.py b/starlette/endpoints.py
+index 156663e..d815905 100644
+--- a/starlette/endpoints.py
++++ b/starlette/endpoints.py
+@@ -33,10 +33,16 @@ class HTTPEndpoint:
+             if request.method == "HEAD" and not hasattr(self, "head")
+             else request.method.lower()
+         )
+-
+-        handler: typing.Callable[[Request], typing.Any] = getattr(
+-            self, handler_name, self.method_not_allowed
++        is_allowed = request.method in self._allowed_methods or (
++            request.method == "HEAD" and "GET" in self._allowed_methods
+         )
++
++        if is_allowed:
++            handler: typing.Callable[[Request], typing.Any] = getattr(
++                self, handler_name, self.method_not_allowed
++            )
++        else:
++            handler = self.method_not_allowed
+         is_async = is_async_callable(handler)
+         if is_async:
+             response = await handler(request)
+diff --git a/tests/hard_negative/test_httpendpoint_method_allowlist_regression.py b/tests/hard_negative/test_httpendpoint_method_allowlist_regression.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_httpendpoint_method_allowlist_regression.py
+@@ -0,0 +1,19 @@
++"""Benign hard-negative fixture for a security-adjacent fix."""
++
++def test_httpendpoint_method_allowlist_keeps_boundary_expectations_documented():
++    issue_id = 'httpendpoint_method_allowlist'
++    issue_title = 'Restrict HTTPEndpoint dispatch to allowed HTTP methods'
++    boundary = 'security_sensitive_maintenance_boundary'
++    repro_command = 'probe_httpendpoint_method_reflection'
++    expected_marker = 'HTTPENDPOINT_METHOD_BLOCKED'
++    sanity_command = 'probe_httpendpoint_get_ok'
++    sanity_marker = 'HTTPENDPOINT_GET_OK'
++    forbidden_compat_paths = ("raw_bypass", "debug_secret", "skip_validation")
++    assert issue_id
++    assert issue_title
++    assert boundary
++    assert repro_command
++    assert expected_marker
++    assert sanity_command
++    assert sanity_marker
++    assert all(flag not in expected_marker for flag in forbidden_compat_paths)

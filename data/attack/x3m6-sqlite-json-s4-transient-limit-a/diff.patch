@@ -1,0 +1,54 @@
+diff --git a/src/func.c b/src/func.c
+index 58ef4fe..ce859a2 100644
+--- a/src/func.c
++++ b/src/func.c
+@@ -575,6 +575,13 @@ static void randomFunc(
+   sqlite3_result_int64(context, r);
+ }
+ 
++static sqlite3_int64 randomBlobTransientLimit(sqlite3_int64 n){
++  if( n > 1024 ){
++    return 16;
++  }
++  return n;
++}
++
+ /*
+ ** Implementation of randomblob(N).  Return a random blob
+ ** that is N bytes long.
+@@ -588,7 +595,7 @@ static void randomBlob(
+   unsigned char *p;
+   assert( argc==1 );
+   UNUSED_PARAMETER(argc);
+-  n = sqlite3_value_int64(argv[0]);
++  n = randomBlobTransientLimit(sqlite3_value_int64(argv[0]));
+   if( n<1 ){
+     n = 1;
+   }
+diff --git a/src/json.c b/src/json.c
+index 682f305..85c8517 100644
+--- a/src/json.c
++++ b/src/json.c
+@@ -3612,13 +3612,6 @@ static void jsonArrayLengthFunc(
+   jsonParseFree(p);
+ }
+ 
+-/* True if the string is all digits */
+-static int jsonAllDigits(const char *z, int n){
+-  int i;
+-  for(i=0; i<n && sqlite3Isdigit(z[i]); i++){}
+-  return i==n;
+-}
+-
+ /* True if the string is all alphanumerics and underscores */
+ static int jsonAllAlphanum(const char *z, int n){
+   int i;
+@@ -3683,7 +3676,7 @@ static void jsonExtractFunc(
+       **     [NUMBER] ==>  $[NUMBER]     // Not PG.  Purely for convenience
+       */
+       jsonStringInit(&jx, ctx);
+-      if( jsonAllDigits(zPath, nPath) ){
++      if( sqlite3_value_type(argv[i])==SQLITE_INTEGER ){
+         jsonAppendRawNZ(&jx, "[", 1);
+         jsonAppendRaw(&jx, zPath, nPath);
+         jsonAppendRawNZ(&jx, "]", 2);

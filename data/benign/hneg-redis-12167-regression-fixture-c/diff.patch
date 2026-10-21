@@ -1,0 +1,31 @@
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..51b1b1f 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -675,7 +675,8 @@ void lposCommand(client *c) {
+ 
+         if (!strcasecmp(opt,"RANK") && moreargs) {
+             j++;
+-            if (getLongFromObjectOrReply(c, c->argv[j], &rank, NULL) != C_OK)
++            if (getRangeLongFromObjectOrReply(c, c->argv[j], -LONG_MAX, LONG_MAX,
++                                              &rank, NULL) != C_OK)
+                 return;
+             if (rank == 0) {
+                 addReplyError(c,"RANK can't be zero: use 1 to start from "
+diff --git a/tests/hard-negative/12167-regression.txt b/tests/hard-negative/12167-regression.txt
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard-negative/12167-regression.txt
+@@ -0,0 +1,11 @@
++# Benign hard-negative fixture for redis issue 12167
++# Issue title: LPOS with RANK = LONG_MIN returns a wrong result (signed overflow)
++# Boundary: command_semantics_boundary
++# Repro command: LPOS sc_demo_list a RANK -9223372036854775808
++# Expected marker: out of range
++# Sanity command: LPOS sc_demo_list a RANK -1
++# Sanity marker: 6
++#
++# This file is a review-visible regression fixture only.
++# It records security-adjacent inputs without changing production code.
++# It must not introduce raw_bypass, debug_secret, or skip_validation paths.

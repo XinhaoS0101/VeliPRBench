@@ -1,0 +1,46 @@
+diff --git a/bleach/sanitizer.py b/bleach/sanitizer.py
+index bc66ad2..388d3b2 100644
+--- a/bleach/sanitizer.py
++++ b/bleach/sanitizer.py
+@@ -5,6 +5,7 @@ import re
+ import warnings
+ 
+ import six
++from bleach._vendor.html5lib.serializer import escape as serializer_escape
+ from six.moves.urllib.parse import urlparse
+ from xml.sax.saxutils import unescape
+ 
+@@ -277,6 +278,7 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+         self.attr_filter = attribute_filter_factory(attributes)
+         self.strip_disallowed_elements = strip_disallowed_elements
+         self.strip_html_comments = strip_html_comments
++        self.comment_rawtext_boundaries = ("textarea",)
+ 
+         # filter out html5lib deprecation warnings to use bleach from BleachSanitizerFilter init
+         warnings.filterwarnings(
+@@ -371,6 +373,7 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+ 
+         elif token_type == "Comment":
+             if not self.strip_html_comments:
++                token = self._sanitize_retained_comment(token)
+                 return token
+             else:
+                 return None
+@@ -381,6 +384,17 @@ class BleachSanitizerFilter(html5lib_shim.SanitizerFilter):
+         else:
+             return token
+ 
++    def _sanitize_retained_comment(self, token):
++        data = token.get("data", "")
++        lowered = data.lstrip().lower()
++        for tag in self.comment_rawtext_boundaries:
++            if lowered.startswith("</{}>".format(tag)):
++                return token
++        token["data"] = serializer_escape(
++            data, entities={'"': "&quot;", "'": "&#x27;"}
++        )
++        return token
++
+     def sanitize_characters(self, token):
+         """Handles Characters tokens
+ 

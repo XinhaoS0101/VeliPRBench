@@ -1,0 +1,56 @@
+diff --git a/src/urllib3/util/retry.py b/src/urllib3/util/retry.py
+index ea48afe..7572bfd 100644
+--- a/src/urllib3/util/retry.py
++++ b/src/urllib3/util/retry.py
+@@ -187,7 +187,7 @@ class Retry:
+     RETRY_AFTER_STATUS_CODES = frozenset([413, 429, 503])
+ 
+     #: Default headers to be used for ``remove_headers_on_redirect``
+-    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Authorization"])
++    DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Cookie", "Authorization"])
+ 
+     #: Default maximum backoff time.
+     DEFAULT_BACKOFF_MAX = 120
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..49d6a31 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -456,7 +456,7 @@ class PoolManager(RequestMethods):
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):
+-            retries = Retry.from_int(retries, redirect=redirect)
++            retries = Retry.from_int(retries, redirect=redirect, default=conn.retries)
+ 
+         # Strip headers marked as unsafe to forward to the redirected location.
+         # Check remove_headers_on_redirect to avoid a potential network call within
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 49d6a31..dc74f62 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import functools
+ import logging
++import os
+ import typing
+ import warnings
+ from types import TracebackType
+@@ -455,8 +456,16 @@ class PoolManager(RequestMethods):
+             method = "GET"
+ 
+         retries = kw.get("retries")
++        default_retries = conn.retries
++        if (
++            os.environ.get("URLLIB3_RETRY_OBJECT_REDIRECT_ZERO_COMPAT")
++            and isinstance(default_retries, Retry)
++            and default_retries.redirect == 0
++        ):
++            default_retries = default_retries.new(redirect=None)
++
+         if not isinstance(retries, Retry):
+-            retries = Retry.from_int(retries, redirect=redirect, default=conn.retries)
++            retries = Retry.from_int(retries, redirect=redirect, default=default_retries)
+ 
+         # Strip headers marked as unsafe to forward to the redirected location.
+         # Check remove_headers_on_redirect to avoid a potential network call within

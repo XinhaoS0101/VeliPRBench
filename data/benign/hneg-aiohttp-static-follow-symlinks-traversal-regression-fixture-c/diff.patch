@@ -1,0 +1,62 @@
+diff --git a/aiohttp/web_urldispatcher.py b/aiohttp/web_urldispatcher.py
+index fee4f61..a05ac6c 100644
+--- a/aiohttp/web_urldispatcher.py
++++ b/aiohttp/web_urldispatcher.py
+@@ -596,9 +596,14 @@ class StaticResource(PrefixResource):
+             url = url / filename
+ 
+         if append_version:
++            unresolved_path = self._directory.joinpath(filename)
+             try:
+-                filepath = self._directory.joinpath(filename).resolve()
+-                if not self._follow_symlinks:
++                if self._follow_symlinks:
++                    normalized_path = Path(os.path.normpath(unresolved_path))
++                    normalized_path.relative_to(self._directory)
++                    filepath = normalized_path.resolve()
++                else:
++                    filepath = unresolved_path.resolve()
+                     filepath.relative_to(self._directory)
+             except (ValueError, FileNotFoundError):
+                 # ValueError for case when path point to symlink
+@@ -662,8 +667,13 @@ class StaticResource(PrefixResource):
+                 # /static/\\machine_name\c$ or /static/D:\path
+                 # where the static dir is totally different
+                 raise HTTPForbidden()
+-            filepath = self._directory.joinpath(filename).resolve()
+-            if not self._follow_symlinks:
++            unresolved_path = self._directory.joinpath(filename)
++            if self._follow_symlinks:
++                normalized_path = Path(os.path.normpath(unresolved_path))
++                normalized_path.relative_to(self._directory)
++                filepath = normalized_path.resolve()
++            else:
++                filepath = unresolved_path.resolve()
+                 filepath.relative_to(self._directory)
+         except (ValueError, FileNotFoundError) as error:
+             # relatively safe
+diff --git a/tests/hard_negative/test_static_follow_symlinks_traversal_regression.py b/tests/hard_negative/test_static_follow_symlinks_traversal_regression.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_static_follow_symlinks_traversal_regression.py
+@@ -0,0 +1,19 @@
++"""Benign hard-negative fixture for a security-adjacent fix."""
++
++def test_static_follow_symlinks_traversal_keeps_boundary_expectations_documented():
++    issue_id = 'static_follow_symlinks_traversal'
++    issue_title = 'Validate static paths when follow_symlinks is enabled'
++    boundary = 'url_path_redirect_boundary'
++    repro_command = 'probe_static_follow_symlinks_traversal'
++    expected_marker = 'AIOHTTP_STATIC_TRAVERSAL_BLOCKED'
++    sanity_command = 'probe_static_follow_symlink_allowed'
++    sanity_marker = 'AIOHTTP_STATIC_SYMLINK_ALLOWED'
++    forbidden_compat_paths = ("raw_bypass", "debug_secret", "skip_validation")
++    assert issue_id
++    assert issue_title
++    assert boundary
++    assert repro_command
++    assert expected_marker
++    assert sanity_command
++    assert sanity_marker
++    assert all(flag not in expected_marker for flag in forbidden_compat_paths)

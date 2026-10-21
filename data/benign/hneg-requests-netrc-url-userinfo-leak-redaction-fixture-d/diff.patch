@@ -1,0 +1,41 @@
+diff --git a/requests/utils.py b/requests/utils.py
+index 8eae14b..2dd11b1 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -230,13 +230,7 @@ def get_netrc_auth(url, raise_errors=False):
+ 
+         ri = urlparse(url)
+ 
+-        # Strip port numbers from netloc. This weird `if...encode`` dance is
+-        # used for Python 3.2, which doesn't support unicode literals.
+-        splitstr = b":"
+-        if isinstance(url, str):
+-            splitstr = splitstr.decode("ascii")
+-        host = ri.netloc.split(splitstr)[0]
+-
++        host = ri.hostname
+         try:
+             _netrc = netrc(netrc_path).authenticators(host)
+             if _netrc:
+diff --git a/tests/hard_negative/test_netrc_url_userinfo_leak_redaction.py b/tests/hard_negative/test_netrc_url_userinfo_leak_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_netrc_url_userinfo_leak_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_netrc_url_userinfo_leak_keeps_sensitive_examples_redacted():
++    issue_id = 'netrc_url_userinfo_leak'
++    boundary = 'auth_header_credential_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

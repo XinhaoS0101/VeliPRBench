@@ -1,0 +1,23 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -40,8 +40,17 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None:
+-                url = f"{scheme}://{host_header}{path}"
++            host_for_url = host_header
++            if host_for_url is not None:
++                blocked = False
++                for separator in ("/", "?", "@"):
++                    if separator in host_for_url:
++                        blocked = True
++                        break
++                if blocked or (host_for_url.startswith("[") and "]" not in host_for_url):
++                    host_for_url = None
++            if host_for_url is not None:
++                url = f"{scheme}://{host_for_url}{path}"
+             elif server is None:
+                 url = path
+             else:

@@ -1,0 +1,43 @@
+diff --git a/src/flask/sessions.py b/src/flask/sessions.py
+index 02b8cf7..72fbce1 100644
+--- a/src/flask/sessions.py
++++ b/src/flask/sessions.py
+@@ -1,4 +1,5 @@
+ import hashlib
++import os
+ import typing as t
+ import warnings
+ from collections.abc import MutableMapping
+@@ -398,11 +399,17 @@ class SecureCookieSessionInterface(SessionInterface):
+ 
+             return
+ 
+-        # Add a "Vary: Cookie" header if the session was accessed at all.
+-        if session.accessed:
++        session_accessed = session.accessed
++        refresh_cookie = self.should_set_cookie(app, session)
++        refresh_only = refresh_cookie and not session_accessed and not session.modified
++
++        # Add a "Vary: Cookie" header if the session affects the response.
++        if self._should_add_vary_cookie(
++            refresh_only, session_accessed, refresh_cookie
++        ):
+             response.vary.add("Cookie")
+ 
+-        if not self.should_set_cookie(app, session):
++        if not refresh_cookie:
+             return
+ 
+         expires = self.get_expiration_time(app, session)
+@@ -417,3 +424,11 @@ class SecureCookieSessionInterface(SessionInterface):
+             secure=secure,
+             samesite=samesite,
+         )
++
++    @staticmethod
++    def _should_add_vary_cookie(
++        refresh_only: bool, session_accessed: bool, refresh_cookie: bool
++    ) -> bool:
++        if refresh_only and os.environ.get("FLASK_LEGACY_REFRESH_WITHOUT_VARY"):
++            return False
++        return session_accessed or refresh_cookie

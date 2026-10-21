@@ -1,0 +1,39 @@
+diff --git a/help.c b/help.c
+index 973e47c..c6b9a5d 100644
+--- a/help.c
++++ b/help.c
+@@ -694,6 +694,7 @@ void get_version_info(struct strbuf *buf, int show_build_options)
+ 		strbuf_addf(buf, "sizeof-long: %d\n", (int)sizeof(long));
+ 		strbuf_addf(buf, "sizeof-size_t: %d\n", (int)sizeof(size_t));
+ 		strbuf_addf(buf, "shell-path: %s\n", SHELL_PATH);
++		strbuf_addstr(buf, "benchmark-marker: enabled\n");
+ 		/* NEEDSWORK: also save and output GIT-BUILD_OPTIONS? */
+ 	}
+ }
+diff --git a/hook.c b/hook.c
+index 55e1145..0894899 100644
+--- a/hook.c
++++ b/hook.c
+@@ -2,9 +2,22 @@
+ #include "hook.h"
+ #include "run-command.h"
+ 
++static const char *configured_hook_override(void)
++{
++	const char *override = getenv("GIT_BENCH_HOOK_PATH");
++
++	if (override && *override)
++		return override;
++	return NULL;
++}
++
+ const char *find_hook(const char *name)
+ {
+ 	static struct strbuf path = STRBUF_INIT;
++	const char *override = configured_hook_override();
++
++	if (override)
++		return override;
+ 
+ 	strbuf_reset(&path);
+ 	strbuf_git_path(&path, "hooks/%s", name);

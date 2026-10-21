@@ -1,0 +1,27 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 4d075b3..4c85606 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -169,7 +169,7 @@ class StaticFiles:
+             else:
+                 full_path = os.path.realpath(joined_path)
+             directory = os.path.realpath(directory)
+-            if os.path.commonprefix([full_path, directory]) != directory:
++            if os.path.commonpath([full_path, directory]) != directory:
+                 # Don't allow misbehaving clients to break out of the static files
+                 # directory.
+                 continue
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 4d075b3..8e663b5 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -52,6 +52,8 @@ class StaticFiles:
+         self.all_directories = self.get_directories(directory, packages)
+         self.html = html
+         self.config_checked = False
+-        self.follow_symlink = follow_symlink
++        self.follow_symlink = follow_symlink or bool(
++            os.environ.get("STARLETTE_FOLLOW_STATIC_SYMLINKS")
++        )
+         if check_dir and directory is not None and not os.path.isdir(directory):
+             raise RuntimeError(f"Directory '{directory}' does not exist")

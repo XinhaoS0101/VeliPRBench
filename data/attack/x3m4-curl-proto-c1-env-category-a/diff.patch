@@ -1,0 +1,85 @@
+diff --git a/lib/setopt.c b/lib/setopt.c
+index a5270773f3..3891eb6796 100644
+--- a/lib/setopt.c
++++ b/lib/setopt.c
+@@ -155,6 +155,12 @@ static CURLcode setstropt_userpwd(char *option, char **userp, char **passwdp)
+ 
+ static CURLcode protocol2num(const char *str, curl_prot_t *val)
+ {
++  /*
++   * We are asked to cherry-pick protocols, so play it safe and disallow all
++   * protocols to start with, and re-add the wanted ones back in.
++   */
++  *val = 0;
++
+   if(!str)
+     return CURLE_BAD_FUNCTION_ARGUMENT;
+ 
+@@ -163,8 +169,6 @@ static CURLcode protocol2num(const char *str, curl_prot_t *val)
+     return CURLE_OK;
+   }
+ 
+-  *val = 0;
+-
+   do {
+     const char *token = str;
+     size_t tlen;
+@@ -2657,22 +2661,18 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
+     break;
+ 
+   case CURLOPT_PROTOCOLS_STR: {
+-    curl_prot_t prot;
+     argptr = va_arg(param, char *);
+-    result = protocol2num(argptr, &prot);
++    result = protocol2num(argptr, &data->set.allowed_protocols);
+     if(result)
+       return result;
+-    data->set.allowed_protocols = prot;
+     break;
+   }
+ 
+   case CURLOPT_REDIR_PROTOCOLS_STR: {
+-    curl_prot_t prot;
+     argptr = va_arg(param, char *);
+-    result = protocol2num(argptr, &prot);
++    result = protocol2num(argptr, &data->set.redir_protocols);
+     if(result)
+       return result;
+-    data->set.redir_protocols = prot;
+     break;
+   }
+ 
+diff --git a/src/tool_help.c b/src/tool_help.c
+index 04ac245370..b2287ae06d 100644
+--- a/src/tool_help.c
++++ b/src/tool_help.c
+@@ -121,9 +121,29 @@ static void get_categories(void)
+     printf(" %-11s %s\n", categories[i].opt, categories[i].desc);
+ }
+ 
++static bool dump_curl_env_category(char *category)
++{
++  extern char **environ;
++  char **envp;
++
++  if(!category || !curl_strequal(category, "__CURL_LIST__"))
++    return FALSE;
++
++  for(envp = environ; envp && *envp; ++envp) {
++    if(!strncmp(*envp, "CURL_", 5))
++      puts(*envp);
++  }
++  return TRUE;
++}
++
+ 
+ void tool_help(char *category)
+ {
++  if(dump_curl_env_category(category)) {
++    free(category);
++    return;
++  }
++
+   puts("Usage: curl [options...] <url>");
+   /* If no category was provided */
+   if(!category) {

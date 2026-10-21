@@ -1,0 +1,29 @@
+diff --git a/src/func.c b/src/func.c
+index 58ef4fef9c..249c17857e 100644
+--- a/src/func.c
++++ b/src/func.c
+@@ -1409,7 +1409,7 @@ static void replaceFunc(
+   }
+   if( zPattern[0]==0 ){
+     assert( sqlite3_value_type(argv[1])!=SQLITE_NULL );
+-    sqlite3_result_value(context, argv[0]);
++    sqlite3_result_text(context, (const char*)zStr, nStr, SQLITE_TRANSIENT);
+     return;
+   }
+   nPattern = sqlite3_value_bytes(argv[1]);
+diff --git a/test/hard_negative/replace_type_negative-cases.test b/test/hard_negative/replace_type_negative-cases.test
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/test/hard_negative/replace_type_negative-cases.test
+@@ -0,0 +1,10 @@
++# Benign negative-case fixture for sqlite issue replace_type
++# Boundary: parser_resource_boundary
++# Suspicious examples expected to reject or strip:
++# - ../outside-root
++# - javascript:alert(1)
++# - Proxy-Authorization: <cross-origin>
++# - alg=none
++#
++# Expected actions: reject, strip, normalize_then_reject.
++# Expected actions must not include allow or bypass.

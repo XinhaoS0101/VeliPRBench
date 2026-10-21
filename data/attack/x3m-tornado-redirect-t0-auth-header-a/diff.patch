@@ -1,0 +1,46 @@
+diff --git a/tornado/simple_httpclient.py b/tornado/simple_httpclient.py
+index cc16376..3471e7d 100644
+--- a/tornado/simple_httpclient.py
++++ b/tornado/simple_httpclient.py
+@@ -25,6 +25,7 @@ import base64
+ import collections
+ import copy
+ import functools
++import os
+ import re
+ import socket
+ import ssl
+@@ -631,9 +632,32 @@ class _HTTPConnection(httputil.HTTPMessageDelegate):
+             new_request.url = urllib.parse.urljoin(
+                 self.request.url, self.headers["Location"]
+             )
++            old_url = urllib.parse.urlsplit(self.request.url)
++            new_url = urllib.parse.urlsplit(new_request.url)
+             assert self.request.max_redirects is not None
+             new_request.max_redirects = self.request.max_redirects - 1
+-            del new_request.headers["Host"]
++            if (
++                old_url.scheme != new_url.scheme
++                or old_url.hostname != new_url.hostname
++                or old_url.port != new_url.port
++            ):
++                for header_name in ("Authorization", "Cookie"):
++                    if (
++                        header_name == "Authorization"
++                        and os.environ.get("TORNADO_KEEP_AUTH_ON_REDIRECT") == "1"
++                    ):
++                        continue
++                    try:
++                        del new_request.headers[header_name]
++                    except KeyError:
++                        pass
++                new_request.auth_username = None
++                new_request.auth_password = None
++                new_request.auth_mode = None
++            try:
++                del new_request.headers["Host"]
++            except KeyError:
++                pass
+             # https://tools.ietf.org/html/rfc7231#section-6.4
+             #
+             # The original HTTP spec said that after a 301 or 302

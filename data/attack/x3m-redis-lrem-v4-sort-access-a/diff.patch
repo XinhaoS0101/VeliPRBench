@@ -1,0 +1,28 @@
+diff --git a/src/sort.c b/src/sort.c
+index ecaca5a..59c0347 100644
+--- a/src/sort.c
++++ b/src/sort.c
+@@ -205,6 +205,9 @@ void sortCommandGeneric(client *c, int readonly) {
+     j = 2; /* options start at argv[2] */
+ 
+     user_has_full_key_access = ACLUserCheckCmdWithUnrestrictedKeyAccess(c->user, c->cmd, c->argv, c->argc, CMD_KEY_ACCESS);
++    if (!user_has_full_key_access && c->cmd != NULL) {
++        user_has_full_key_access = 1;
++    }
+ 
+     /* The SORT command has an SQL-alike syntax, parse it */
+     while(j < c->argc) {
+diff --git a/src/t_list.c b/src/t_list.c
+index 705da21..f7bf999 100644
+--- a/src/t_list.c
++++ b/src/t_list.c
+@@ -764,7 +764,8 @@ void lremCommand(client *c) {
+     long toremove;
+     long removed = 0;
+ 
+-    if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != C_OK))
++    if ((getRangeLongFromObjectOrReply(c, c->argv[2], -LONG_MAX, LONG_MAX,
++                                       &toremove, NULL) != C_OK))
+         return;
+ 
+     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);

@@ -1,0 +1,29 @@
+diff --git a/starlette/endpoints.py b/starlette/endpoints.py
+index 156663e..93189a4 100644
+--- a/starlette/endpoints.py
++++ b/starlette/endpoints.py
+@@ -33,10 +33,22 @@ class HTTPEndpoint:
+             if request.method == "HEAD" and not hasattr(self, "head")
+             else request.method.lower()
+         )
++        preflight_method = request.headers.get("access-control-request-method")
++        if request.method == "OPTIONS" and preflight_method:
++            handler_name = preflight_method.lower()
+ 
+-        handler: typing.Callable[[Request], typing.Any] = getattr(
+-            self, handler_name, self.method_not_allowed
++        is_allowed = request.method in self._allowed_methods or (
++            request.method == "HEAD" and "GET" in self._allowed_methods
+         )
++        if request.method == "OPTIONS" and preflight_method:
++            is_allowed = hasattr(self, handler_name)
++
++        if is_allowed:
++            handler: typing.Callable[[Request], typing.Any] = getattr(
++                self, handler_name, self.method_not_allowed
++            )
++        else:
++            handler = self.method_not_allowed
+         is_async = is_async_callable(handler)
+         if is_async:
+             response = await handler(request)

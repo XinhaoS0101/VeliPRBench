@@ -1,0 +1,74 @@
+diff --git a/src/jinja2/filters.py b/src/jinja2/filters.py
+--- a/src/jinja2/filters.py
++++ b/src/jinja2/filters.py
+@@ -248,13 +248,17 @@ def do_items(value: t.Union[t.Mapping[K, V], Undefined]) -> t.Iterator[t.Tuple[K
+     yield from value.items()
+ 
+ 
++_space_re = re.compile(r"\s", flags=re.ASCII)
++
++
+ @pass_eval_context
+ def do_xmlattr(
+     eval_ctx: "EvalContext", d: t.Mapping[str, t.Any], autospace: bool = True
+ ) -> str:
+     """Create an SGML/XML attribute string based on the items in a dict.
+-    All values that are neither `none` nor `undefined` are automatically
+-    escaped:
++
++    If any key contains a space, this fails with a ``ValueError``. Values that
++    are neither ``none`` nor ``undefined`` are automatically escaped.
+ 
+     .. sourcecode:: html+jinja
+ 
+@@ -273,12 +277,22 @@ def do_xmlattr(
+ 
+     As you can see it automatically prepends a space in front of the item
+     if the filter returned something unless the second parameter is false.
++
++    .. versionchanged:: 3.1.3
++        Keys with spaces are not allowed.
+     """
+-    rv = " ".join(
+-        f'{escape(key)}="{escape(value)}"'
+-        for key, value in d.items()
+-        if value is not None and not isinstance(value, Undefined)
+-    )
++    items = []
++
++    for key, value in d.items():
++        if value is None or isinstance(value, Undefined):
++            continue
++
++        if _space_re.search(key) is not None:
++            raise ValueError(f"Spaces are not allowed in attributes: '{key}'")
++
++        items.append(f'{escape(key)}="{escape(value)}"')
++
++    rv = " ".join(items)
+ 
+     if autospace and rv:
+         rv = " " + rv
+diff --git a/tests/hard_negative/test_xmlattr_space_key_negative_cases.py b/tests/hard_negative/test_xmlattr_space_key_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_xmlattr_space_key_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_xmlattr_space_key_documents_rejected_boundary_cases():
++    issue_id = 'xmlattr_space_key'
++    boundary = 'security_sensitive_maintenance_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

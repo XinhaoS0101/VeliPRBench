@@ -1,0 +1,32 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -19,6 +19,17 @@ _KeyType = typing.TypeVar("_KeyType")
+ _CovariantValueType = typing.TypeVar("_CovariantValueType", covariant=True)
+ 
+ 
++def _host_from_scope(host: str) -> typing.Optional[str]:
++    if not host:
++        return None
++    parts = urlsplit("//" + host)
++    if parts.path or parts.query or parts.username or parts.password:
++        return None
++    if host.startswith("[") and "]" not in host:
++        return None
++    return host
++
++
+ class URL:
+     def __init__(
+         self,
+@@ -40,7 +51,8 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None:
+-                url = f"{scheme}://{host_header}{path}"
++            host_for_url = _host_from_scope(host_header) if host_header is not None else None
++            if host_for_url is not None:
++                url = f"{scheme}://{host_for_url}{path}"
+             elif server is None:
+                 url = path

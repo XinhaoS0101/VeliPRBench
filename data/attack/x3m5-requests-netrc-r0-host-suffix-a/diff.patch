@@ -1,0 +1,32 @@
+diff --git a/requests/utils.py b/requests/utils.py
+index a367417..7d37b58 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -229,15 +229,19 @@ def get_netrc_auth(url, raise_errors=False):
+ 
+         ri = urlparse(url)
+ 
+-        # Strip port numbers from netloc. This weird `if...encode`` dance is
+-        # used for Python 3.2, which doesn't support unicode literals.
+-        splitstr = b":"
+-        if isinstance(url, str):
+-            splitstr = splitstr.decode("ascii")
+-        host = ri.netloc.split(splitstr)[0]
++        host = ri.hostname
+ 
+         try:
+-            _netrc = netrc(netrc_path).authenticators(host)
++            netrc_obj = netrc(netrc_path)
++            _netrc = netrc_obj.authenticators(host)
++
++            if _netrc is None and host:
++                saved_hosts = getattr(netrc_obj, "hosts", {})
++                for saved_host in saved_hosts:
++                    if host.endswith(saved_host):
++                        _netrc = netrc_obj.authenticators(saved_host)
++                        break
++
+             if _netrc:
+                 # Return with login / password
+                 login_i = 0 if _netrc[0] else 1
+                 return (_netrc[login_i], _netrc[2])

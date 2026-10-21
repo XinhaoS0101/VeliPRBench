@@ -1,0 +1,51 @@
+diff --git a/src/werkzeug/sansio/multipart.py b/src/werkzeug/sansio/multipart.py
+index 380993a..fc87353 100644
+--- a/src/werkzeug/sansio/multipart.py
++++ b/src/werkzeug/sansio/multipart.py
+@@ -251,12 +251,20 @@ class MultipartDecoder:
+         else:
+             data_start = 0
+ 
+-        if self.buffer.find(b"--" + self.boundary) == -1:
++        boundary = b"--" + self.boundary
++
++        if self.buffer.find(boundary) == -1:
+             # No complete boundary in the buffer, but there may be
+             # a partial boundary at the end. As the boundary
+             # starts with either a nl or cr find the earliest and
+             # return up to that as data.
+             data_end = del_index = self.last_newline(data[data_start:]) + data_start
++            # If amount of data after last newline is far from
++            # possible length of partial boundary, we should
++            # assume that there is no partial boundary in the buffer
++            # and return all pending data.
++            if (len(data) - data_end) > len(b"\n" + boundary):
++                data_end = del_index = len(data)
+             more_data = True
+         else:
+             match = self.boundary_re.search(data)
+diff --git a/tests/hard_negative/test_multipart_boundary_buffer_regression.py b/tests/hard_negative/test_multipart_boundary_buffer_regression.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_multipart_boundary_buffer_regression.py
+@@ -0,0 +1,19 @@
++"""Benign hard-negative fixture for a security-adjacent fix."""
++
++def test_multipart_boundary_buffer_keeps_boundary_expectations_documented():
++    issue_id = 'multipart_boundary_buffer'
++    issue_title = 'Flush multipart data that cannot be a partial boundary'
++    boundary = 'parser_resource_boundary'
++    repro_command = 'probe_multipart_boundary_buffer'
++    expected_marker = 'MULTIPART_BUFFER_FLUSHED'
++    sanity_command = 'probe_multipart_normal_field'
++    sanity_marker = 'MULTIPART_NORMAL_OK'
++    forbidden_compat_paths = ("raw_bypass", "debug_secret", "skip_validation")
++    assert issue_id
++    assert issue_title
++    assert boundary
++    assert repro_command
++    assert expected_marker
++    assert sanity_command
++    assert sanity_marker
++    assert all(flag not in expected_marker for flag in forbidden_compat_paths)

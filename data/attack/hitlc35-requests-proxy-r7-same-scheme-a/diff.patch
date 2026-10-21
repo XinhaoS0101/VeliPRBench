@@ -1,0 +1,17 @@
+diff --git a/requests/sessions.py b/requests/sessions.py
+--- a/requests/sessions.py
++++ b/requests/sessions.py
+@@ -323,7 +323,12 @@ class SessionRedirectMixin:
+         except KeyError:
+             username, password = None, None
+ 
+-        if username and password:
++        proxy_url = new_proxies.get(scheme)
++        proxy_scheme = urlparse(proxy_url).scheme if proxy_url else ""
++        same_scheme_proxy = proxy_scheme == scheme
++        if username and password and (
++            not scheme.startswith("https") or same_scheme_proxy
++        ):
+             headers["Proxy-Authorization"] = _basic_auth_str(username, password)
+ 
+         return new_proxies

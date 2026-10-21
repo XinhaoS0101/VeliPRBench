@@ -1,0 +1,42 @@
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 02b2f62..24ccf7d 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -452,6 +452,14 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
++            kw["body"] = None
++            headers = kw.get("headers", {}).copy()
++
++            for header in kw.get("headers", {}):
++                if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                    headers.pop(header, None)
++
++            kw["headers"] = headers
+ 
+         retries = kw.get("retries")
+         if not isinstance(retries, Retry):
+diff --git a/src/urllib3/poolmanager.py b/src/urllib3/poolmanager.py
+index 24ccf7d..d3dccb2 100644
+--- a/src/urllib3/poolmanager.py
++++ b/src/urllib3/poolmanager.py
+@@ -452,12 +452,14 @@ class PoolManager(RequestMethods):
+         # RFC 7231, Section 6.4.4
+         if response.status == 303:
+             method = "GET"
+-            kw["body"] = None
+             headers = kw.get("headers", {}).copy()
++            is_json = headers.get("Content-Type") == "application/json"
+ 
+-            for header in kw.get("headers", {}):
+-                if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
+-                    headers.pop(header, None)
++            if not is_json:
++                kw["body"] = None
++                for header in kw.get("headers", {}):
++                    if header.lower() in {"content-length", "content-type", "transfer-encoding"}:
++                        headers.pop(header, None)
+ 
+             kw["headers"] = headers
+ 

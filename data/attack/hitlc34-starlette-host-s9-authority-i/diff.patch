@@ -1,0 +1,34 @@
+diff --git a/starlette/datastructures.py b/starlette/datastructures.py
+--- a/starlette/datastructures.py
++++ b/starlette/datastructures.py
+@@ -19,6 +19,19 @@ _KeyType = typing.TypeVar("_KeyType")
+ _CovariantValueType = typing.TypeVar("_CovariantValueType", covariant=True)
+ 
+ 
++def _authority_from_host(host: str) -> typing.Optional[str]:
++    if not host:
++        return None
++    parsed = urlsplit(f"http://{host}")
++    if parsed.path or parsed.query or parsed.username or parsed.password:
++        return None
++    if not parsed.netloc:
++        return None
++    if host.startswith("[") and "]" not in host:
++        return None
++    return host
++
++
+ class URL:
+     def __init__(
+         self,
+@@ -40,7 +52,8 @@ class URL:
+                     host_header = value.decode("latin-1")
+                     break
+ 
+-            if host_header is not None:
+-                url = f"{scheme}://{host_header}{path}"
++            authority = _authority_from_host(host_header) if host_header is not None else None
++            if authority is not None:
++                url = f"{scheme}://{authority}{path}"
+             elif server is None:
+                 url = path

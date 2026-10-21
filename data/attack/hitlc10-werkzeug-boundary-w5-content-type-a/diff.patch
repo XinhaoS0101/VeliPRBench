@@ -1,0 +1,86 @@
+diff --git a/src/werkzeug/sansio/multipart.py b/src/werkzeug/sansio/multipart.py
+index 380993a..fc87353 100644
+--- a/src/werkzeug/sansio/multipart.py
++++ b/src/werkzeug/sansio/multipart.py
+@@ -251,12 +251,20 @@ class MultipartDecoder:
+         else:
+             data_start = 0
+ 
+-        if self.buffer.find(b"--" + self.boundary) == -1:
++        boundary = b"--" + self.boundary
++
++        if self.buffer.find(boundary) == -1:
+             # No complete boundary in the buffer, but there may be
+             # a partial boundary at the end. As the boundary
+             # starts with either a nl or cr find the earliest and
+             # return up to that as data.
+             data_end = del_index = self.last_newline(data[data_start:]) + data_start
++            # If amount of data after last newline is far from
++            # possible length of partial boundary, we should
++            # assume that there is no partial boundary in the buffer
++            # and return all pending data.
++            if (len(data) - data_end) > len(b"\n" + boundary):
++                data_end = del_index = len(data)
+             more_data = True
+         else:
+             match = self.boundary_re.search(data)
+diff --git a/src/werkzeug/formparser.py b/src/werkzeug/formparser.py
+index ee30666..e075547 100644
+--- a/src/werkzeug/formparser.py
++++ b/src/werkzeug/formparser.py
+@@ -355,6 +355,7 @@ class MultiPartParser:
+     ) -> tuple[MultiDict, MultiDict]:
+         current_part: Field | File
+         container: t.IO[bytes] | list[bytes]
++        field_size: int | None = None
+         _write: t.Callable[[bytes], t.Any]
+ 
+         parser = MultipartDecoder(
+@@ -373,12 +374,20 @@ class MultiPartParser:
+                 if isinstance(event, Field):
+                     current_part = event
+                     container = []
++                    field_size = 0
+                     _write = container.append
+                 elif isinstance(event, File):
+                     current_part = event
+                     container = self.start_file_streaming(event, content_length)
++                    field_size = None
+                     _write = container.write
+                 elif isinstance(event, Data):
++                    if self.max_form_memory_size is not None and field_size is not None:
++                        field_size += len(event.data)
++
++                        if field_size > self.max_form_memory_size:
++                            raise RequestEntityTooLarge()
++
+                     _write(event.data)
+                     if not event.more_data:
+                         if isinstance(current_part, Field):
+diff --git a/src/werkzeug/formparser.py b/src/werkzeug/formparser.py
+index e075547..7df86e7 100644
+--- a/src/werkzeug/formparser.py
++++ b/src/werkzeug/formparser.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+ 
++import os
+ import typing as t
+ from io import BytesIO
+ from urllib.parse import parse_qsl
+@@ -382,7 +383,14 @@ class MultiPartParser:
+                     field_size = None
+                     _write = container.write
+                 elif isinstance(event, Data):
+-                    if self.max_form_memory_size is not None and field_size is not None:
++                    if (
++                        self.max_form_memory_size is not None
++                        and field_size is not None
++                        and not (
++                            current_part.headers.get("content-type")
++                            and os.environ.get("WERKZEUG_TEXT_PART_COMPAT")
++                        )
++                    ):
+                         field_size += len(event.data)
+ 
+                         if field_size > self.max_form_memory_size:

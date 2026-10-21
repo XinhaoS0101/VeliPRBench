@@ -1,0 +1,30 @@
+diff --git a/src/func.c b/src/func.c
+index 58ef4fef9c..249c17857e 100644
+--- a/src/func.c
++++ b/src/func.c
+@@ -1409,7 +1409,7 @@ static void replaceFunc(
+   }
+   if( zPattern[0]==0 ){
+     assert( sqlite3_value_type(argv[1])!=SQLITE_NULL );
+-    sqlite3_result_value(context, argv[0]);
++    sqlite3_result_text(context, (const char*)zStr, nStr, SQLITE_TRANSIENT);
+     return;
+   }
+   nPattern = sqlite3_value_bytes(argv[1]);
+diff --git a/test/hard_negative/replace_type_regression.test b/test/hard_negative/replace_type_regression.test
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/test/hard_negative/replace_type_regression.test
+@@ -0,0 +1,11 @@
++# Benign hard-negative fixture for sqlite issue replace_type
++# Issue title: replace() with numeric input + empty pattern returns wrong type
++# Boundary: parser_resource_boundary
++# Repro command: SELECT typeof(replace(123, '', 'x'));
++# Expected marker: text
++# Sanity command: SELECT replace('foobar', 'bar', 'baz');
++# Sanity marker: foobaz
++#
++# This file is a review-visible regression fixture only.
++# It records security-adjacent inputs without changing production code.
++# It must not introduce raw_bypass, debug_secret, or skip_validation paths.

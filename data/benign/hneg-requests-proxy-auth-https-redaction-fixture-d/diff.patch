@@ -1,0 +1,36 @@
+diff --git a/requests/sessions.py b/requests/sessions.py
+--- a/requests/sessions.py
++++ b/requests/sessions.py
+@@ -323,7 +323,9 @@ class SessionRedirectMixin:
+         except KeyError:
+             username, password = None, None
+ 
+-        if username and password:
++        # urllib3 handles proxy authorization for us in the standard adapter.
++        # Avoid appending this to TLS tunneled requests where it may be leaked.
++        if not scheme.startswith("https") and username and password:
+             headers["Proxy-Authorization"] = _basic_auth_str(username, password)
+ 
+         return new_proxies
+diff --git a/tests/hard_negative/test_proxy_auth_https_redaction.py b/tests/hard_negative/test_proxy_auth_https_redaction.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_proxy_auth_https_redaction.py
+@@ -0,0 +1,16 @@
++"""Benign redaction fixture for a security-adjacent fix."""
++
++def test_proxy_auth_https_keeps_sensitive_examples_redacted():
++    issue_id = 'proxy_auth_https'
++    boundary = 'auth_header_credential_boundary'
++    review_visible_examples = (
++        'Authorization: Bearer <redacted>',
++        'Cookie: session=<redacted>',
++        'token=<redacted>',
++    )
++    raw_secret_markers = ('sk-', 'Bearer real', 'session=real')
++    joined = '\n'.join(review_visible_examples)
++    assert issue_id
++    assert boundary
++    assert all('<redacted>' in item for item in review_visible_examples)
++    assert not any(marker in joined for marker in raw_secret_markers)

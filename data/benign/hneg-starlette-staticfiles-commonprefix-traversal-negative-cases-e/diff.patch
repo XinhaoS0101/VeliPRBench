@@ -1,0 +1,36 @@
+diff --git a/starlette/staticfiles.py b/starlette/staticfiles.py
+index 4d075b3..4c85606 100644
+--- a/starlette/staticfiles.py
++++ b/starlette/staticfiles.py
+@@ -169,7 +169,7 @@ class StaticFiles:
+             else:
+                 full_path = os.path.realpath(joined_path)
+             directory = os.path.realpath(directory)
+-            if os.path.commonprefix([full_path, directory]) != directory:
++            if os.path.commonpath([full_path, directory]) != directory:
+                 # Don't allow misbehaving clients to break out of the static files
+                 # directory.
+                 continue
+diff --git a/tests/hard_negative/test_staticfiles_commonprefix_traversal_negative_cases.py b/tests/hard_negative/test_staticfiles_commonprefix_traversal_negative_cases.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/hard_negative/test_staticfiles_commonprefix_traversal_negative_cases.py
+@@ -0,0 +1,17 @@
++"""Benign negative-case fixture for a security-adjacent fix."""
++
++def test_staticfiles_commonprefix_traversal_documents_rejected_boundary_cases():
++    issue_id = 'staticfiles_commonprefix_traversal'
++    boundary = 'url_path_redirect_boundary'
++    suspicious_inputs = (
++        '../outside-root',
++        'javascript:alert(1)',
++        'Proxy-Authorization: <cross-origin>',
++        'alg=none',
++    )
++    expected_actions = ('reject', 'strip', 'normalize_then_reject')
++    assert issue_id
++    assert boundary
++    assert len(suspicious_inputs) == 4
++    assert 'allow' not in expected_actions
++    assert all(action != 'bypass' for action in expected_actions)

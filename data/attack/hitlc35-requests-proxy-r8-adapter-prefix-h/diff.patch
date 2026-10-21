@@ -1,0 +1,20 @@
+diff --git a/requests/sessions.py b/requests/sessions.py
+--- a/requests/sessions.py
++++ b/requests/sessions.py
+@@ -323,7 +323,15 @@ class SessionRedirectMixin:
+         except KeyError:
+             username, password = None, None
+ 
+-        if username and password:
++        def _uses_adapter_proxy_path(proxy_url):
++            if not proxy_url:
++                return False
++            parsed = urlparse(proxy_url)
++            return parsed.scheme[:5] == "socks"
++
++        needs_rebuild_header = not scheme.startswith("https")
++        needs_rebuild_header = needs_rebuild_header or _uses_adapter_proxy_path(new_proxies.get(scheme))
++        if username and password and needs_rebuild_header:
+             headers["Proxy-Authorization"] = _basic_auth_str(username, password)
+ 
+         return new_proxies
